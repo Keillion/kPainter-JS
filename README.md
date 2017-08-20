@@ -1,6 +1,6 @@
 # kPainter
  
- - Browser side img editor, kPainter. H5 only. Support both mobile and PC.
+ - Browser side img editor, kPainter-JS. H5 only. Support both mobile and PC.
  
  - Copyright (c) 2017 Keillion Wang
  - All Rights Reserved except that the github user agreement said.
