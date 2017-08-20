@@ -14,17 +14,22 @@ $("#imgShowMdl").append(painterDOM);
 
 //debug
 var sampleImgs = $('.sampleImg');
+var loadedCount = 0;
 for(var i=0; i<sampleImgs.length; ++i){
 	var sampleImg = sampleImgs[i];
 	if(sampleImg.complete){
 		painter.addImage(sampleImg);
+		if(++loadedCount == sampleImgs.length){
+			$("#grayFog").hide();
+		}
 	}else{
 		(function(sampleImg){
 			sampleImg.onload = function(){
 				painter.addImage(sampleImg);
+				if(++loadedCount == sampleImgs.length){
+					$("#grayFog").hide();
+				}
 			};
 		})(sampleImg);
 	}
 }
-
-$("#grayFog").hide();
