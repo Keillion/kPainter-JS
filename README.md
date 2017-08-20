@@ -1,4 +1,4 @@
-# kPainter
+# kPainter-JS
  
  - Browser side img editor, kPainter-JS. H5 only. Support both mobile and PC.
  
