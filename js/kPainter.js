@@ -44,6 +44,14 @@ var KPainter = function(){
 	kPainter.isEditing = function(){
 		return isEditing;
 	};
+	kPainter.getImage = function(index){
+		if(arguments.length < 1){
+			index = curIndex;
+		}
+		if(isNaN(index) || 0 > index || index > imgArr.length - 1){ return; }
+		index = Math.round(index);
+		return imgArr[index];
+	};
 
 	var onStartLoading = null, onFinishLoading = null;
 	kPainter.setOnLoading = function(onstart, onfinish){
@@ -90,7 +98,7 @@ var KPainter = function(){
 				if(isClone){
 					img = $(img).clone()[0];
 				}
-				img.oriImg = img;
+				img.kPainterOriImg = img;
 				mainBox.children('.kPainterImgsDiv').append(img);
 				imgArr.push(img);
 				showImg(imgArr.length - 1);
@@ -592,7 +600,7 @@ var KPainter = function(){
 		};
 
 		var updateCvs = function(bTrueTransform){
-			var img = imgArr[curIndex].oriImg;
+			var img = imgArr[curIndex].kPainterOriImg;
 			var process = stack[curStep];
 			var crop = process.crop;
 			var tsf = process.transform;
@@ -651,7 +659,7 @@ var KPainter = function(){
 			isEditing = true;
 
 			stack.length = 0;
-			var process = imgArr[curIndex].imgProcess || {
+			var process = imgArr[curIndex].kPainterProcess || {
 				crop: {
 					left: 0,
 					top: 0,
@@ -682,8 +690,8 @@ var KPainter = function(){
 				mainBox.find('.kPainterImgsDiv > .kPainterCanvas').hide();
 				updateCvs(true);
 			}
-			img.oriImg = imgArr[curIndex].oriImg;
-			img.imgProcess = stack[stack.length - 1];
+			img.kPainterOriImg = imgArr[curIndex].kPainterOriImg;
+			img.kPainterProcess = stack[stack.length - 1];
 			imgArr.splice(++curIndex, 0, img);
 			img.onload = img.onerror = function(){
 				img.onload = img.onerror = null;
