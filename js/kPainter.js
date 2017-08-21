@@ -212,6 +212,7 @@ var KPainter = function(){
 			index = Math.round(index);
 			var a = document.createElement('a');
 			filename = filename || (new Date()).getTime();
+			a.target='_blank';
 			a.download = filename;
 			a.href = imgArr[index].src;
 			var ev = new MouseEvent('click',{
