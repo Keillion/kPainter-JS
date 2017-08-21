@@ -50,7 +50,7 @@ var KPainter = function(){
 		}
 		if(isNaN(index) || 0 > index || index > imgArr.length - 1){ return; }
 		index = Math.round(index);
-		return imgArr[index];
+		return $(imgArr[index]).clone()[0];
 	};
 
 	var onStartLoading = null, onFinishLoading = null;
@@ -132,7 +132,8 @@ var KPainter = function(){
 			fileReader.readAsDataURL(blob);
 		};
 
-		var setImgStyleNoRatateFit = function(img){
+		var setImgStyleNoRatateFit = function(){
+			var img = imgArr[curIndex];
 			var box = mainBox;
 			var pbr = box.paddingBoxRect();
 			var cbr = box.contentBoxRect();
@@ -143,12 +144,75 @@ var KPainter = function(){
 			$(img).css("left", (pbr.width-img.width)/2+"px");
 		};
 
+		mainBox.resize(function(){
+			if(!isEditing && !isWaitingResize && curIndex >= 0){
+				isWaitingResize = true;
+				setTimeout(function(){
+					if(!isEditing && curIndex >= 0){
+						setImgStyleNoRatateFit();
+					}
+					isWaitingResize = false;
+				}, resizeTimeout);
+			}
+		});
+		var resizeTimeout = 500;
+		var isWaitingResize = false;
+		mainBox.resize(function(immediate){
+			if(!isEditing){return;}
+			if(null != resizeTaskId){
+				clearTimeout()
+			}
+			if(!isWaitingResize){
+				isWaitingResize = true;
+				setTimeout(function(){
+					if(isEditing){
+						updateCvs();
+					}
+					isWaitingResize = false;
+				}, resizeTimeout);
+			}
+		});
+
+		var resizeTaskId = null;
+		var resizeTimeout = 500;
+		var isWaitingResize = false;
+		var beforeTimeoutIsEditing;
+		kPainter.updateUIOnResize = function(isLazy){
+			if(null != resizeTaskId){
+				clearTimeout(resizeTaskId);
+				resizeTaskId = null;
+			}
+			if(isLazy){
+				beforeTimeoutIsEditing = isEditing;
+				resizeTaskId = setTimeout(function(){
+					if(curIndex != -1 && beforeTimeoutIsEditing == isEditing){
+						if(isEditing){
+							gesturer.setImgStyleFit();
+							cropGesturer.setCropAll();
+						}else{
+							setImgStyleNoRatateFit();
+						}
+					}
+					resizeTaskId = null;
+				}, resizeTimeout);
+			}else{
+				if(curIndex != -1){
+					if(isEditing){
+						gesturer.setImgStyleFit();
+						cropGesturer.setCropAll();
+					}else{
+						setImgStyleNoRatateFit();
+					}
+				}
+			}
+		};
+
 		var showImg = imgStorer.showImg = function(index){
 			var img = imgArr[index];
 			$(img).siblings().hide();
 			$(img).show();
-			setImgStyleNoRatateFit(img);
 			curIndex = index;
+			setImgStyleNoRatateFit();
 			updateNumUI();
 		};
 
