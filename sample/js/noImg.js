@@ -11,7 +11,7 @@ painterDOM.style.width = '100%';
 painterDOM.style.height = '100%';
 painterDOM.style.backgroundColor = 'rgba(0,0,0,0.3)';
 $("#imgShowMdl").append(painterDOM);
-$(window).resize(function(){
+$(window).on("resize orientationchange", function(){
 	painter.updateUIOnResize(true);
 });
 
