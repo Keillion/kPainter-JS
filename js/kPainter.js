@@ -144,35 +144,6 @@ var KPainter = function(){
 			$(img).css("left", (pbr.width-img.width)/2+"px");
 		};
 
-		mainBox.resize(function(){
-			if(!isEditing && !isWaitingResize && curIndex >= 0){
-				isWaitingResize = true;
-				setTimeout(function(){
-					if(!isEditing && curIndex >= 0){
-						setImgStyleNoRatateFit();
-					}
-					isWaitingResize = false;
-				}, resizeTimeout);
-			}
-		});
-		var resizeTimeout = 500;
-		var isWaitingResize = false;
-		mainBox.resize(function(immediate){
-			if(!isEditing){return;}
-			if(null != resizeTaskId){
-				clearTimeout()
-			}
-			if(!isWaitingResize){
-				isWaitingResize = true;
-				setTimeout(function(){
-					if(isEditing){
-						updateCvs();
-					}
-					isWaitingResize = false;
-				}, resizeTimeout);
-			}
-		});
-
 		var resizeTaskId = null;
 		var resizeTimeout = 500;
 		var isWaitingResize = false;
