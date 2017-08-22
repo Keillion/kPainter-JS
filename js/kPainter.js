@@ -298,8 +298,8 @@ var KPainter = function(){
 				//if('posZoom' != gestureStatus){
 				//	return;
 				//}
-				mainBox.find('.kPainterCroper > .kPainterEdges').children().css('z-index','unset');
-				mainBox.find('.kPainterCroper > .kPainterCorners').children().css('z-index','unset');
+				mainBox.find('> .kPainterCroper > .kPainterEdges').children().css('z-index','unset');
+				mainBox.find('> .kPainterCroper > .kPainterCorners').children().css('z-index','unset');
 				jqEvent.preventDefault();
 				jqEvent.stopPropagation();
 				x0 = touchs[0].pageX;
@@ -345,8 +345,8 @@ var KPainter = function(){
 				if('posZoom' != gestureStatus){
 					return;
 				}
-				mainBox.find('.kPainterCroper > .kPainterEdges').children().css('z-index','unset');
-				mainBox.find('.kPainterCroper > .kPainterCorners').children().css('z-index','unset');
+				mainBox.find('> .kPainterCroper > .kPainterEdges').children().css('z-index','unset');
+				mainBox.find('> .kPainterCroper > .kPainterCorners').children().css('z-index','unset');
 				jqEvent.preventDefault();
 				jqEvent.stopPropagation();
 				x0 = touchs[0].pageX;
@@ -361,8 +361,8 @@ var KPainter = function(){
 				clickUpX = x0, clickUpY = y0;
 				if('posZoom' == gestureStatus){
 					gestureStatus = null;
-					mainBox.find('.kPainterCroper > .kPainterEdges').children().css('z-index', 1);
-					mainBox.find('.kPainterCroper > .kPainterCorners').children().css('z-index', 1);
+					mainBox.find('> .kPainterCroper > .kPainterEdges').children().css('z-index', 1);
+					mainBox.find('> .kPainterCroper > .kPainterCorners').children().css('z-index', 1);
 				}
 			}
 		};
@@ -372,17 +372,17 @@ var KPainter = function(){
 			clickUpX = oEvent.clientX, clickUpY = oEvent.clientY;
 			if('posZoom' == gestureStatus){
 				gestureStatus = null;
-				mainBox.find('.kPainterCroper > .kPainterEdges').children().css('z-index', 1);
-				mainBox.find('.kPainterCroper > .kPainterCorners').children().css('z-index', 1);
+				mainBox.find('> .kPainterCroper > .kPainterEdges').children().css('z-index', 1);
+				mainBox.find('> .kPainterCroper > .kPainterCorners').children().css('z-index', 1);
 			}
 		};
 
 		var getImgInfo = function(isIgnoreCrop){
 			var box = mainBox;
 			if(isEditing){
-				img = box.find('.kPainterImgsDiv > .kPainterCanvas');
+				img = box.find('> .kPainterImgsDiv > .kPainterCanvas');
 			}else{
-				img = box.find(".kPainterImgsDiv>img:visible");
+				img = box.find("> .kPainterImgsDiv > img:visible");
 			}
 			imgW = img[0].width;
 			imgH = img[0].height;
@@ -609,7 +609,7 @@ var KPainter = function(){
 			}
 		};
 
-		var canvas = mainBox.find(".kPainterImgsDiv > .kPainterCanvas")[0];
+		var canvas = mainBox.find("> .kPainterImgsDiv > .kPainterCanvas")[0];
 
 		var fromToStep = function(fromStep, toStep){
 			curStep = toStep;
@@ -685,7 +685,7 @@ var KPainter = function(){
 		};
 
 		var hideCvs = function(){
-			mainBox.find(".kPainterImgsDiv > .kPainterCanvas").hide();
+			mainBox.find("> .kPainterImgsDiv > .kPainterCanvas").hide();
 			mainBox.children('.kPainterCroper').hide();
 		};
 
@@ -723,7 +723,7 @@ var KPainter = function(){
 			var img = new Image(); //imgArr[curIndex];
 			var tsf = stack[curStep].transform;
 			if(tsf.a!=1 || tsf.b!=0 || tsf.c!=0 || tsf.d!=1 || tsf.e!=0 || tsf.f!=0){
-				mainBox.find('.kPainterImgsDiv > .kPainterCanvas').hide();
+				mainBox.find('> .kPainterImgsDiv > .kPainterCanvas').hide();
 				updateCvs(true);
 			}
 			img.kPainterOriImg = imgArr[curIndex].kPainterOriImg;
@@ -792,7 +792,7 @@ var KPainter = function(){
 		var kPainterCroper = mainBox.children('.kPainterCroper');
 		kPainterCroper.css({"border-left-width":fogBorderWidth+"px","border-top-width":fogBorderWidth+"px","left":"-"+fogBorderWidth+"px","top":"-"+fogBorderWidth+"px"});
 		
-		var x0, y0, orientX, orientY, bpbr, bcbr, cvs = mainBox.find('.kPainterImgsDiv > .kPainterCanvas'),
+		var x0, y0, orientX, orientY, bpbr, bcbr, cvs = mainBox.find('> .kPainterImgsDiv > .kPainterCanvas'),
 			cvsLeft, cvsTop, cvsRight, cvsBottom,
 			left, top, width, height,
 			minW = 50, minH = 50, minLeft, minTop, maxRight, maxBottom;
@@ -864,7 +864,7 @@ var KPainter = function(){
 			cvsRight = cx + hzCvsTW;
 			cvsBottom = cy + hzCvsTH;
 		};
-		mainBox.find('.kPainterCroper > .kPainterEdges > div, .kPainterCroper > .kPainterCorners > div').on('touchstart touchcancel touchend mousedown', onTouchChange);
+		mainBox.find('> .kPainterCroper > .kPainterEdges > div, > .kPainterCroper > .kPainterCorners > div').on('touchstart touchcancel touchend mousedown', onTouchChange);
 		mainBox.on('mouseup mouseleave', onMouseCancel);
 
 		var setCropBox = function(){
