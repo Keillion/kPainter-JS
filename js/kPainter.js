@@ -690,7 +690,7 @@ var KPainter = function(){
 		};
 
 		kPainter.enterEdit = function(){
-			if(isEditing){return;}
+			if(isEditing || -1 == curIndex){return;}
 			if(onStartLoading && typeof(onStartLoading)=='function'){try{onStartLoading();}catch(ex){}}
 			isEditing = true;
 
