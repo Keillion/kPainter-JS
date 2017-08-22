@@ -793,7 +793,7 @@ var KPainter = function(){
 		kPainterCroper.css({"border-left-width":fogBorderWidth+"px","border-top-width":fogBorderWidth+"px","left":"-"+fogBorderWidth+"px","top":"-"+fogBorderWidth+"px"});
 		
 		var x0, y0, orientX, orientY, bpbr, bcbr, cvs = mainBox.find('> .kPainterImgsDiv > .kPainterCanvas'),
-			cvsLeft, cvsTop, cvsRight, cvsBottom,
+			cvsLeft, cvsTop, cvsRight, cvsBottom, cvsTW, cvsTH,
 			left, top, width, height,
 			minW = 50, minH = 50, minLeft, minTop, maxRight, maxBottom;
 		var onTouchChange = function(jqEvent){
@@ -852,7 +852,6 @@ var KPainter = function(){
 			var bpt = bcbr.pageY0-bpbr.pageY0;
 			var cx = parseFloat(cvs[0].style.left) - bpl + cvs[0].width/2;
 			var cy = parseFloat(cvs[0].style.top) - bpl + cvs[0].height/2;
-			var cvsTW, cvsTH;
 			if(Math.pow(tsf.a,2)+Math.pow(tsf.d,2)>Math.pow(tsf.b,2)+Math.pow(tsf.c,2)){
 				cvsTW = cvs[0].width, cvsTH = cvs[0].height;
 			}else{
@@ -954,26 +953,25 @@ var KPainter = function(){
 			if(!isEditing){ return; }
 			getInfo();
 			if(arguments.length >= 4){
-				editor.pushStack({
-					crop: {
-						left: l,
-						top: t,
-						width: w,
-						height: h
-					}
-				});
 			}else{
 				var cvsW = cvsRight - cvsLeft,
 					cvsH = cvsBottom - cvsTop;
-				editor.pushStack({
-					crop: {
-						left: (left - cvsLeft) / cvsW,
-						top: (top - cvsTop) / cvsH,
-						width: width / cvsW,
-						height: height / cvsH
-					}
-				});
+				l = (left - cvsLeft) / cvsW,
+				t = (top - cvsTop) / cvsH,
+				w = width / cvsW,
+				h = height / cvsH;
 			}
+			if(l*cvsTW < 0.5 && (1-l-w)*cvsTW < 0.5 && t*cvsTH < 0.5 && (1-t-h)*cvsTH < 0.5){
+				return;
+			}
+			editor.pushStack({
+				crop: {
+					left: l,
+					top: t,
+					width: w,
+					height: h
+				}
+			});
 		};
 	};
 };
