@@ -44,13 +44,16 @@ var KPainter = function(){
 	kPainter.isEditing = function(){
 		return isEditing;
 	};
-	kPainter.getImage = function(index){
+	kPainter.getImage = function(isClone, index){
 		if(arguments.length < 1){
+			isClone = true;
+		}
+		if(arguments.length < 2){
 			index = curIndex;
 		}
 		if(isNaN(index) || 0 > index || index > imgArr.length - 1){ return; }
 		index = Math.round(index);
-		return $(imgArr[index]).clone()[0];
+		return isClone ? $(imgArr[index]).clone()[0] : imgArr[index];
 	};
 
 	var onStartLoading = null, onFinishLoading = null;
