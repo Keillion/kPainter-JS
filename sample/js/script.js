@@ -1,3 +1,8 @@
+$("body").on("touchstart touchmove touchcancel touchend", function(ev){
+	ev.preventDefault();
+	ev.stopPropagation();
+});
+
 var painter = new KPainter();
 painter.setOnLoading(
 	function(){ $("#grayFog").show(); },
