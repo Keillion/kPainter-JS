@@ -51,8 +51,9 @@ var KPainter = function(){
 		if(arguments.length < 2){
 			index = curIndex;
 		}
-		if(isNaN(index) || 0 > index || index > imgArr.length - 1){ return; }
+		if(isNaN(index)){ return; }
 		index = Math.round(index);
+		if(index < 0 || index >= imgArr.length){ return; }
 		return isClone ? $(imgArr[index]).clone()[0] : imgArr[index];
 	};
 
@@ -216,7 +217,7 @@ var KPainter = function(){
 						index = Math.round(cmd);
 					};
 			}
-			if(index < 0 || index > imgArr.length - 1 || index == curIndex){ return; }
+			if(index < 0 || index >= imgArr.length || index == curIndex){ return; }
 			showImg(index);
 		};
 
@@ -225,8 +226,9 @@ var KPainter = function(){
 			if(arguments.length < 1){
 				index = curIndex;
 			}
-			if(isNaN(index) || 0 > index || index > imgArr.length - 1){ return; }
+			if(isNaN(index)){ return; }
 			index = Math.round(index);
+			if(index < 0 || index >= imgArr.length){ return; }
 			$(imgArr[index]).remove();
 			imgArr.splice(index, 1);
 			if(index == curIndex){
@@ -246,8 +248,9 @@ var KPainter = function(){
 			if(arguments.length < 2){
 				index = curIndex;
 			}
-			if(isNaN(index) || 0 > index || index > imgArr.length - 1){ return; }
+			if(isNaN(index)){ return; }
 			index = Math.round(index);
+			if(index < 0 || index >= imgArr.length){ return; }
 			var a = document.createElement('a');
 			filename = filename || (new Date()).getTime();
 			a.target='_blank';
@@ -611,6 +614,17 @@ var KPainter = function(){
 				fromToStep(curStep, curStep + 1);
 			}
 		};
+		kPainter.getCurStep = function(){
+			return curStep;
+		};
+		kPainter.setCurStep = function(index){
+			if(arguments.length < 1 || isNaN(index)){
+				return;
+			}
+			index = Math.round(index);
+			if(index < 0 || index >= stack.length){ return; }
+			fromToStep(curStep, index);
+		}
 
 		var canvas = mainBox.find("> .kPainterImgsDiv > .kPainterCanvas")[0];
 
@@ -711,7 +725,7 @@ var KPainter = function(){
 			curStep = 0;
 
 			showCvs();
-			mainBox.children('.kPainterCroper').show();
+			if(kPainter.isAutoShowCropUI){ mainBox.children('.kPainterCroper').show(); }
 			if(onFinishLoading && typeof(onFinishLoading)=='function'){try{onFinishLoading();}catch(ex){}}
 		};
 
@@ -791,8 +805,17 @@ var KPainter = function(){
 
 		var cropGesturer = this;
 
-		var fogBorderWidth = 10000;
+		kPainter.isAutoShowCropUI = true;
 		var kPainterCroper = mainBox.children('.kPainterCroper');
+		kPainter.showCropRect = function(){
+			if(!isEditing){ return; }
+			kPainterCroper.show();
+		}
+		kPainter.hideCropRect = function(){
+			kPainterCroper.hide();
+		}
+
+		var fogBorderWidth = 10000;
 		kPainterCroper.css({"border-left-width":fogBorderWidth+"px","border-top-width":fogBorderWidth+"px","left":"-"+fogBorderWidth+"px","top":"-"+fogBorderWidth+"px"});
 		
 		var x0, y0, orientX, orientY, bpbr, bcbr, cvs = mainBox.find('> .kPainterImgsDiv > .kPainterCanvas'),
