@@ -71,43 +71,10 @@ var KPainter = function(){
 		var hideFileIpt = $('<input type="file" accept="image/bmp,image/gif,image/jpeg,image/png" multiple style="display:none">');
 		$(hideFileIpt).change(function(){
 			for(var i=0; i<this.files.length; ++i){
-				addBlobImageAsync(this.files[i]); // have queued inner, so not recur
+				addImageAsync(this.files[i]); // have queued inner, so not recur
 			}
 			$(this).val('');
 		});
-
-		var loadImgTaskQueue = new TaskQueue();
-		var addBlobImageAsync = kPainter.addBlobImageAsync = function(blob, callback){
-			if(isEditing){ return; }
-			if(blob instanceof Blob){
-				if(onStartLoading && typeof(onStartLoading)=='function'){try{onStartLoading();}catch(ex){}}
-				(function(callback){
-					loadImgTaskQueue.push(
-						loadNewImgAsync, 
-						null, 
-						[blob, function(){ 
-							if(callback && typeof(callback)=='function'){ callback(); }
-							loadImgTaskQueue.next();
-							if(!loadImgTaskQueue.isWorking){
-								if(onFinishLoading && typeof(onFinishLoading)=='function'){try{onFinishLoading();}catch(ex){}}
-							}
-						}]
-					);
-				})(callback);
-			}
-		};
-		var addImage = kPainter.addImage = function(img, isClone){
-			if(isEditing){ return; }
-			if(img instanceof HTMLImageElement){	
-				if(isClone){
-					img = $(img).clone()[0];
-				}
-				img.kPainterOriImg = img;
-				mainBox.children('.kPainterImgsDiv').append(img);
-				imgArr.push(img);
-				showImg(imgArr.length - 1);
-			}
-		};
 
 		kPainter.setHideFileIpt = function(inputEl){
 			if(arguments.length >= 1){
@@ -121,19 +88,99 @@ var KPainter = function(){
 			return hideFileIpt;
 		};
 
-		var loadNewImgAsync = function(blob, callback){
-			var fileReader = new FileReader();
-			fileReader.onload = function(){
-				var fileReader = this;
-				var img = new Image();
+		var loadImgTaskQueue = new TaskQueue();
+		var addImageAsync = kPainter.addImageAsync = function(imgData, callback, isClone){
+			if(isEditing){ return; }
+			if(imgData instanceof HTMLImageElement){
+				if(isClone){
+					imgData = $(imgData).clone()[0];
+				}
+			}else if(imgData instanceof Blob){
+			}else{
+				return;
+			}
+			if(onStartLoading && typeof(onStartLoading)=='function'){try{onStartLoading();}catch(ex){}}
+			(function(callback){
+				loadImgTaskQueue.push(
+					addImageTask, 
+					null, 
+					[imgData, function(){ 
+						if(callback && typeof(callback)=='function'){ callback(); }
+						loadImgTaskQueue.next();
+						if(!loadImgTaskQueue.isWorking){
+							if(onFinishLoading && typeof(onFinishLoading)=='function'){try{onFinishLoading();}catch(ex){}}
+						}
+					}]
+				);
+			})(callback);
+		};
+
+		var addImage = function(img){
+			img.kPainterOriImg = img;
+			mainBox.children('.kPainterImgsDiv').append(img);
+			imgArr.push(img);
+			showImg(imgArr.length - 1);
+		};
+
+		var addImageTask = function(imgData, callback){
+			EXIF.getData(imgData, function(){
+				// img from ios may have orientation
+				var orient = EXIF.getTag(this, 'Orientation'),
+					pxX = EXIF.getTag(this, 'PixelXDimension'),
+					pxY = EXIF.getTag(this, 'PixelYDimension');
+				var tsf = null;
+				switch(orient){
+					case 6: tsf = new kUtil.Matrix(0,1,-1,0,1,0); break;
+					case 3: tsf = new kUtil.Matrix(-1,0,0,-1,1,1); break;
+					case 8: tsf = new kUtil.Matrix(0,-1,1,0,0,1); break;
+					default: break;
+				}
+				if(imgData instanceof Blob){
+					var fileReader = new FileReader();
+					fileReader.onload = function(){
+						var fileReader = this;
+						var img = new Image();
+						img.onload = img.onerror = function(){
+							img.onload = img.onerror = null;
+							fixImgOrient(img, tsf, pxX, pxY, function(img){
+								addImage(img);
+								if(callback && typeof(callback)=='function'){ callback(); }
+							});
+						};
+						img.src = fileReader.result;
+					};
+					fileReader.readAsDataURL(imgData);
+				}else{//imgData instanceof HTMLImageElement
+					fixImgOrient(imgData, tsf, pxX, pxY, function(img){
+						addImage(img);
+						if(callback && typeof(callback)=='function'){ callback(); }
+					});
+				}
+			});
+		};
+
+		var fixImgOrient = function(img, tsf, pxX, pxY, callback){
+			if(tsf){
+				// fix img from ios
+				var tCvs = document.createElement('canvas');
+				if(0 != tsf.a*tsf.d && 0 == tsf.b*tsf.c){
+					tCvs.width = pxX;
+					tCvs.height = pxY;
+				}else{
+					tCvs.width = pxY;
+					tCvs.height = pxX;
+				}
+				var ctx = tCvs.getContext('2d');
+				ctx.setTransform(tsf.a, tsf.b, tsf.c, tsf.d, tsf.e*tCvs.width, tsf.f*tCvs.height);
+				ctx.drawImage(img, 0, 0);
 				img.onload = img.onerror = function(){
 					img.onload = img.onerror = null;
-					addImage(img);
-					if(callback && typeof(callback)=='function'){ callback(); }
+					if(callback && typeof(callback)=='function'){ callback(img); }
 				};
-				img.src = fileReader.result;
-			};
-			fileReader.readAsDataURL(blob);
+				img.src = tCvs.toDataURL("image/jpeg");
+			}else{
+				if(callback && typeof(callback)=='function'){ callback(img); }
+			}
 		};
 
 		var setImgStyleNoRatateFit = function(){
@@ -163,7 +210,6 @@ var KPainter = function(){
 					if(curIndex != -1 && beforeTimeoutIsEditing == isEditing){
 						if(isEditing){
 							gesturer.setImgStyleFit();
-							cropGesturer.setCropAll();
 						}else{
 							setImgStyleNoRatateFit();
 						}
@@ -174,7 +220,6 @@ var KPainter = function(){
 				if(curIndex != -1){
 					if(isEditing){
 						gesturer.setImgStyleFit();
-						cropGesturer.setCropAll();
 					}else{
 						setImgStyleNoRatateFit();
 					}
@@ -406,7 +451,7 @@ var KPainter = function(){
 			bpl = bcbr.pageX0-bpbr.pageX0;
 			bpt = bcbr.pageY0-bpbr.pageY0;
 			minZoom = Math.min(bcbr.width/imgTW,bcbr.height/imgTH);
-			if(isEditing && !isIgnoreCrop){
+			if(isEditing && cropGesturer.isCropRectShowing && !isIgnoreCrop){
 				var nRect = cropGesturer.getNeededRect();
 				minZoom = Math.max(
 					Math.max(nRect.width,imgTW*minZoom)/imgTW,
@@ -614,6 +659,9 @@ var KPainter = function(){
 				fromToStep(curStep, curStep + 1);
 			}
 		};
+		kPainter.getStepCount = function(){
+			return stack.length;
+		};
 		kPainter.getCurStep = function(){
 			return curStep;
 		};
@@ -640,7 +688,6 @@ var KPainter = function(){
 				// case only do transform, don't redraw canvas
 				$(canvas).setTransform(stack[curStep].transform);
 				gesturer.setImgStyleFit();
-				cropGesturer.setCropAll();
 			}else{
 				updateCvs();
 			}
@@ -650,6 +697,7 @@ var KPainter = function(){
 			$(canvas).siblings().hide();
 			$(canvas).show();
 			updateCvs();
+			if(kPainter.isAutoShowCropUI){ cropGesturer.showCropRect(); }
 		};
 
 		var updateCvs = function(bTrueTransform){
@@ -698,12 +746,11 @@ var KPainter = function(){
 				$(canvas).setTransform(tsf);
 			}
 			gesturer.setImgStyleFit();
-			cropGesturer.setCropAll();
 		};
 
 		var hideCvs = function(){
 			mainBox.find("> .kPainterImgsDiv > .kPainterCanvas").hide();
-			mainBox.children('.kPainterCroper').hide();
+			cropGesturer.hideCropRect();
 		};
 
 		kPainter.enterEdit = function(){
@@ -725,7 +772,6 @@ var KPainter = function(){
 			curStep = 0;
 
 			showCvs();
-			if(kPainter.isAutoShowCropUI){ mainBox.children('.kPainterCroper').show(); }
 			if(onFinishLoading && typeof(onFinishLoading)=='function'){try{onFinishLoading();}catch(ex){}}
 		};
 
@@ -736,25 +782,42 @@ var KPainter = function(){
 			hideCvs();
 		};
 
-		var saveEditedCvsAsync = function(callback){
+		var saveEditedCvsAsync = function(callback, isCover){
 			var img = new Image(); //imgArr[curIndex];
-			var tsf = stack[curStep].transform;
+			var crop = stack[curStep].crop,
+				tsf = stack[curStep].transform,
+				_crop = stack[0].crop,
+				_tsf = stack[0].transform;
 			if(tsf.a!=1 || tsf.b!=0 || tsf.c!=0 || tsf.d!=1 || tsf.e!=0 || tsf.f!=0){
 				mainBox.find('> .kPainterImgsDiv > .kPainterCanvas').hide();
 				updateCvs(true);
 			}
-			img.kPainterOriImg = imgArr[curIndex].kPainterOriImg;
-			img.kPainterProcess = stack[stack.length - 1];
-			imgArr.splice(++curIndex, 0, img);
-			img.onload = img.onerror = function(){
-				img.onload = img.onerror = null;
-				mainBox.children('.kPainterImgsDiv').append(img);
+			var oImg = img.kPainterOriImg = imgArr[curIndex].kPainterOriImg;
+			img.kPainterProcess = stack[curStep];
+			if(_tsf.a != tsf.a || _tsf.b != tsf.b || _tsf.c != tsf.c || _tsf.d != tsf.d ||
+				Math.round(oImg.width * crop.left) != Math.round(oImg.width * _crop.left) ||
+				Math.round(oImg.height * crop.top) != Math.round(oImg.height * _crop.top) ||
+				Math.round(oImg.width * (crop.left + crop.width)) != Math.round(oImg.width * (_crop.left + _crop.width)) ||
+				Math.round(oImg.height * (crop.top + crop.height)) != Math.round(oImg.height * (_crop.top + _crop.height)) )
+			{
+				img.onload = img.onerror = function(){
+					img.onload = img.onerror = null;
+					if(isCover){
+						$(imgArr[curIndex]).remove();
+						imgArr.splice(curIndex, 1, img);
+					}else{
+						imgArr.splice(++curIndex, 0, img);
+					}
+					mainBox.children('.kPainterImgsDiv').append(img);
+					callback();
+				};
+				img.src = canvas.toDataURL('image/jpeg');
+			}else{
 				callback();
-			};
-			img.src = canvas.toDataURL();
+			}
 		};
 
-		kPainter.saveEditAsync = function(callback){
+		kPainter.saveEditAsync = function(callback, isCover){
 			if(!isEditing){return;}
 			if(onStartLoading && typeof(onStartLoading)=='function'){try{onStartLoading();}catch(ex){}}
 			setTimeout(function(){
@@ -762,8 +825,8 @@ var KPainter = function(){
 					quitEdit();
 					if(onFinishLoading && typeof(onFinishLoading)=='function'){try{onFinishLoading();}catch(ex){}}
 					if(callback && typeof(callback)=='function'){ callback(); }
-				});
-			},0);
+				}, isCover);
+			},100);
 		};
 
 		kPainter.rotateRight = function(){
@@ -771,8 +834,6 @@ var KPainter = function(){
 			var transformOri = $(canvas).getTransform();
 			var transformNew = kUtil.Matrix.dot(new kUtil.Matrix(0,1,-1,0,0,0), transformOri);
 			$(canvas).setTransform(transformNew);
-			gesturer.setImgStyleFit();
-			cropGesturer.setCropAll();
 			pushStack({
 				transform: transformNew
 			});
@@ -782,8 +843,6 @@ var KPainter = function(){
 			var transformOri = $(canvas).getTransform();
 			var transformNew = kUtil.Matrix.dot(new kUtil.Matrix(0,-1,1,0,0,0), transformOri);
 			$(canvas).setTransform(transformNew);
-			gesturer.setImgStyleFit();
-			cropGesturer.setCropAll();
 			pushStack({
 				transform: transformNew
 			});
@@ -793,8 +852,6 @@ var KPainter = function(){
 			var transformOri = $(canvas).getTransform();
 			var transformNew = kUtil.Matrix.dot(new kUtil.Matrix(-1,0,0,1,0,0), transformOri);
 			$(canvas).setTransform(transformNew);
-			gesturer.setImgStyleFit();
-			cropGesturer.setCropAll();
 			pushStack({
 				transform: transformNew
 			});
@@ -807,11 +864,15 @@ var KPainter = function(){
 
 		kPainter.isAutoShowCropUI = true;
 		var kPainterCroper = mainBox.children('.kPainterCroper');
-		kPainter.showCropRect = function(){
+		cropGesturer.isCropRectShowing = false;
+		kPainter.showCropRect = cropGesturer.showCropRect = function(){
 			if(!isEditing){ return; }
+			cropGesturer.isCropRectShowing = true;
+			setCropAll();
 			kPainterCroper.show();
 		}
-		kPainter.hideCropRect = function(){
+		kPainter.hideCropRect = cropGesturer.hideCropRect = function(){
+			cropGesturer.isCropRectShowing = false;
 			kPainterCroper.hide();
 		}
 
@@ -957,7 +1018,8 @@ var KPainter = function(){
 			}
 		});
 
-		cropGesturer.setCropAll = function(){
+		var setCropAll = cropGesturer.setCropAll = function(){
+			if(!cropGesturer.isCropRectShowing){ return; }
 			getInfo();
 			left = minLeft;
 			top = minTop;

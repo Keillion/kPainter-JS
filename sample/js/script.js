@@ -26,14 +26,14 @@ var loadedCount = 0;
 for(var i=0; i<sampleImgs.length; ++i){
 	var sampleImg = sampleImgs[i];
 	if(sampleImg.complete){
-		painter.addImage(sampleImg);
+		painter.addImageAsync(sampleImg);
 		if(++loadedCount == sampleImgs.length){
 			$("#grayFog").hide();
 		}
 	}else{
 		(function(sampleImg){
 			sampleImg.onload = function(){
-				painter.addImage(sampleImg);
+				painter.addImageAsync(sampleImg);
 				if(++loadedCount == sampleImgs.length){
 					$("#grayFog").hide();
 				}

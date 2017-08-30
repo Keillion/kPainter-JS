@@ -107,9 +107,15 @@ kUtil.Matrix.dot = function(matrixA, matrixB){
 				arr[i] = parseFloat(arr[i]);
 			}
 			return new kUtil.Matrix(arr[0],arr[1],arr[2],arr[3],arr[4],arr[5]);//.apply(kUtil.Matrix, matrixArr);
-		}else{
-			return new kUtil.Matrix(1,0,0,1,0,0);
 		}
+		partStr = 'scale(';
+		var scaleIndex = strTransform.indexOf(partStr);
+		if(-1 != scaleIndex){
+			scaleIndex += partStr.length;
+			var zoom = parseFloat(strTransform.substring(scaleIndex));
+			return new kUtil.Matrix(zoom,0,0,zoom,0,0);
+		}
+		return new kUtil.Matrix(1,0,0,1,0,0);
 	};
 	$.fn.setTransform = function(matrix){
 		var m = matrix;
