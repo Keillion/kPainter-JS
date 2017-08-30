@@ -506,6 +506,7 @@ var KPainter = function(){
 			getImgInfo(true);
 			zoom = minZoom;
 			updateImgPosZoom();
+			cropGesturer.setCropAll();
 		};
 
 		mainBox.children(".kPainterGesturePanel").on('touchstart touchcancel touchend mousedown', onTouchNumChange);
