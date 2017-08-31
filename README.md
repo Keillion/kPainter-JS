@@ -10,4 +10,4 @@
  - Run sample at https://htmlpreview.github.io/?https://github.com/Keillion/kPainter-JS/blob/master/sample/noImg.html
  - Run sample in the latest firefox PC browser, and click the QR icon at the right of address bar, you could get a QRCode which allowed mobile visit the sample easier.
  
- - Call https://www.dynamsoft.com if you like it. ^_^
+ - Call Keillionv@gmail.com if you like it. ^_^
