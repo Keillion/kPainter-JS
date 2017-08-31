@@ -1,4 +1,13 @@
-$("body").on("touchstart touchmove touchcancel touchend", function(ev){
+var isMobileSafari = (/iPhone/i.test(navigator.platform) || /iPod/i.test(navigator.platform) || /iPad/i.test(navigator.userAgent)) && !!navigator.appVersion.match(/(?:Version\/)([\w\._]+)/); 
+if(isMobileSafari){
+	/* In safari at ios, 
+	 * when open this page by '_blank' mode,
+	 * and run the script in every pages which this page can link to, 
+	 * can disable ios safari swipe back and forward.
+	 */
+	window.history.replaceState(null, null, "#");
+}
+$("body").on("touchmove", function(ev){
 	ev.preventDefault();
 	ev.stopPropagation();
 });
