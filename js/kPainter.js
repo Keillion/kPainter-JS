@@ -115,13 +115,6 @@ var KPainter = function(){
 			})(callback);
 		};
 
-		var addImage = function(img){
-			img.kPainterOriImg = img;
-			mainBox.children('.kPainterImgsDiv').append(img);
-			imgArr.push(img);
-			showImg(imgArr.length - 1);
-		};
-
 		var addImageTask = function(imgData, callback){
 			EXIF.getData(imgData, function(){
 				// img from ios may have orientation
@@ -144,7 +137,7 @@ var KPainter = function(){
 							img.onload = img.onerror = null;
 							fixImgOrient(img, tsf, pxX, pxY, function(img){
 								addImage(img);
-								if(callback && typeof(callback)=='function'){ callback(); }
+								if(callback){ callback(); }
 							});
 						};
 						img.src = fileReader.result;
@@ -153,7 +146,7 @@ var KPainter = function(){
 				}else{//imgData instanceof HTMLImageElement
 					fixImgOrient(imgData, tsf, pxX, pxY, function(img){
 						addImage(img);
-						if(callback && typeof(callback)=='function'){ callback(); }
+						if(callback){ callback(); }
 					});
 				}
 			});
@@ -175,12 +168,19 @@ var KPainter = function(){
 				ctx.drawImage(img, 0, 0);
 				img.onload = img.onerror = function(){
 					img.onload = img.onerror = null;
-					if(callback && typeof(callback)=='function'){ callback(img); }
+					if(callback){ callback(img); }
 				};
 				img.src = tCvs.toDataURL("image/jpeg");
 			}else{
-				if(callback && typeof(callback)=='function'){ callback(img); }
+				if(callback){ callback(img); }
 			}
+		};
+
+		var addImage = function(img){
+			img.kPainterOriImg = img;
+			mainBox.children('.kPainterImgsDiv').append(img);
+			imgArr.push(img);
+			showImg(imgArr.length - 1);
 		};
 
 		var setImgStyleNoRatateFit = function(){
@@ -188,11 +188,24 @@ var KPainter = function(){
 			var box = mainBox;
 			var pbr = box.paddingBoxRect();
 			var cbr = box.contentBoxRect();
-			//var img = box.find(".kPainterImgsDiv > .kPainterCanvas:visible,.kPainterImgsDiv>img:visible")[0];
 			var zoom = Math.min(cbr.width/img.width,cbr.height/img.height);
 			$(img).css("transform", "scale("+zoom+")");
 			$(img).css("top", (pbr.height-img.height)/2+"px");
 			$(img).css("left", (pbr.width-img.width)/2+"px");
+			if(curIndex - 1 >= 0){
+				var pImg = imgArr[curIndex - 1];
+				zoom = Math.min(cbr.width/pImg.width,cbr.height/pImg.height);
+				$(pImg).css("transform", "scale("+zoom+")");
+				$(pImg).css("top", (pbr.height-pImg.height)/2+"px");
+				$(pImg).css("left", (-pbr.width-pImg.width)/2+"px");
+			}
+			if(curIndex + 1 <= imgArr.length - 1){
+				var nImg = imgArr[curIndex + 1];
+				zoom = Math.min(cbr.width/nImg.width,cbr.height/nImg.height);
+				$(nImg).css("transform", "scale("+zoom+")");
+				$(nImg).css("top", (pbr.height-nImg.height)/2+"px");
+				$(nImg).css("left", (pbr.width+(pbr.width-nImg.width)/2)+"px");
+			}
 		};
 
 		var resizeTaskId = null;
@@ -231,6 +244,12 @@ var KPainter = function(){
 			var img = imgArr[index];
 			$(img).siblings().hide();
 			$(img).show();
+			if(index - 1 >= 0){
+				$(imgArr[index - 1]).show();
+			}
+			if(index + 1 <= imgArr.length - 1){
+				$(imgArr[index + 1]).show();
+			}
 			curIndex = index;
 			setImgStyleNoRatateFit();
 			updateNumUI();
@@ -318,7 +337,7 @@ var KPainter = function(){
 
 		var clickTime = Number.NEGATIVE_INFINITY;
 		var dblClickInterval = 1000;
-		var maxMoveRegardAsDblClick = 10;
+		var maxMoveRegardAsDblClick = 8;
 		var clickButtons;
 		var zoomInRate = 2;
 		var zoomOutRate = 0.5;
@@ -329,6 +348,7 @@ var KPainter = function(){
 			img, imgTsf, imgW, imgH, imgTW, imgTH,
 			left, top, zoom, minZoom, maxZoom = 4;
 
+		var moveTouchId;
 		var onTouchNumChange = function(jqEvent){
 			var oEvent = jqEvent.originalEvent;
 			var touchs = oEvent.targetTouches;
@@ -355,6 +375,7 @@ var KPainter = function(){
 				jqEvent.stopPropagation();
 				x0 = touchs[0].pageX;
 				y0 = touchs[0].pageY;
+				moveTouchId = touchs[0].identifier;
 				getImgInfo();
 
 				// if dbl click zoom
@@ -385,7 +406,7 @@ var KPainter = function(){
 						imgCy = top+bpbr.pageY0+imgH/2;
 					left -= (rate-1)*(_cx-imgCx);
 					top -= (rate-1)*(_cy-imgCy);
-					updateImgPosZoom();
+					//updateImgPosZoom();
 				}
 			}else if(2 == touchs.length){
 				// zoom start
@@ -410,21 +431,30 @@ var KPainter = function(){
 				getImgInfo();
 			}else{
 				clickUpX = x0, clickUpY = y0;
-				if('posZoom' == gestureStatus){
-					gestureStatus = null;
-					mainBox.find('> .kPainterCroper > .kPainterEdges').children().css('z-index', 1);
-					mainBox.find('> .kPainterCroper > .kPainterCorners').children().css('z-index', 1);
-				}
+				onMouseUpOrTouchToZero();
 			}
 		};
 
-		var onMouseCancel = function(jqEvent){
-			var oEvent = jqEvent.originalEvent;
-			clickUpX = oEvent.clientX, clickUpY = oEvent.clientY;
+		var onMouseUpOrTouchToZero = function(){
 			if('posZoom' == gestureStatus){
 				gestureStatus = null;
 				mainBox.find('> .kPainterCroper > .kPainterEdges').children().css('z-index', 1);
 				mainBox.find('> .kPainterCroper > .kPainterCorners').children().css('z-index', 1);
+				if(!isEditing){
+					if(left + imgW/2 + imgTW*zoom/2 < bpbr.width/2){
+						if(curIndex < imgArr.length - 1){
+							imgStorer.showImg(curIndex + 1);
+							return;
+						}
+					}else if(left + imgW/2 - imgTW*zoom/2 > bpbr.width/2){
+						if(curIndex > 0){
+							imgStorer.showImg(curIndex - 1);
+							return;
+						}
+					}
+				}
+				correctPosZoom();
+				updateImgPosZoom();
 			}
 		};
 
@@ -433,7 +463,7 @@ var KPainter = function(){
 			if(isEditing){
 				img = box.find('> .kPainterImgsDiv > .kPainterCanvas');
 			}else{
-				img = box.find("> .kPainterImgsDiv > img:visible");
+				img = $(imgArr[curIndex]);
 			}
 			imgW = img[0].width;
 			imgH = img[0].height;
@@ -461,7 +491,7 @@ var KPainter = function(){
 		};
 
 		var updateImgPosZoom = function(){
-			correctPosZoom();
+			//correctPosZoom();
 			img[0].style.left = left+'px';
 			img[0].style.top = top+'px';
 			var _zoom = Math.sqrt(Math.pow(imgTsf.a,2)+Math.pow(imgTsf.b,2));
@@ -471,6 +501,16 @@ var KPainter = function(){
 			imgTsf.c *= rate;
 			imgTsf.d *= rate;
 			img.setTransform(imgTsf);
+			if(!isEditing){
+				if(curIndex - 1 >= 0){
+					var pImg = imgArr[curIndex - 1];
+					$(pImg).css("left", (left+imgW/2-bpbr.width*(zoom/minZoom)/2-bpbr.width/2-pImg.width/2)+"px");
+				}
+				if(curIndex + 1 <= imgArr.length - 1){
+					var nImg = imgArr[curIndex + 1];
+					$(nImg).css("left", (left+imgW/2+bpbr.width*(zoom/minZoom)/2+(bpbr.width/2-nImg.width/2))+"px");
+				}
+			}
 		};
 
 		var correctPosZoom = function(){
@@ -505,12 +545,17 @@ var KPainter = function(){
 		gesturer.setImgStyleFit = function(){
 			getImgInfo(true);
 			zoom = minZoom;
+			correctPosZoom();
 			updateImgPosZoom();
 			cropGesturer.setCropAll();
 		};
 
 		mainBox.children(".kPainterGesturePanel").on('touchstart touchcancel touchend mousedown', onTouchNumChange);
-		mainBox.on('mouseup mouseleave', onMouseCancel);
+		mainBox.on('mouseup mouseleave', function(jqEvent){
+			var oEvent = jqEvent.originalEvent;
+			clickUpX = oEvent.clientX, clickUpY = oEvent.clientY;
+			onMouseUpOrTouchToZero();
+		});
 		mainBox.on('contextmenu', function(jqEvent){
 			jqEvent.preventDefault();
 			jqEvent.stopPropagation();
@@ -530,6 +575,10 @@ var KPainter = function(){
 				}
 				jqEvent.preventDefault();
 				jqEvent.stopPropagation();
+				if(moveTouchId != touchs[0].identifier){
+					// touch is not same
+					return;
+				}
 				var _x0 = x0, _y0 = y0;
 				x0 = touchs[0].pageX;
 				y0 = touchs[0].pageY;
@@ -557,10 +606,10 @@ var KPainter = function(){
 				if(zoom>maxZoom){
 					zoom = maxZoom;
 					rate = maxZoom / _zoom;
-				}
-				if(zoom<minZoom){
-					zoom = minZoom;
-					rate = minZoom / _zoom;
+					if(zoom<minZoom){
+						zoom = minZoom;
+						rate = minZoom / _zoom;
+					}
 				}
 				var imgCx = left+bpbr.pageX0+imgW/2,
 					imgCy = top+bpbr.pageY0+imgH/2;
