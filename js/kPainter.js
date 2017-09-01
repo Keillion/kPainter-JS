@@ -133,6 +133,10 @@ var KPainter = function(){
 					fileReader.onload = function(){
 						var fileReader = this;
 						var img = new Image();
+						var type = imgData.type;
+						if(type.indexOf("png")!=-1 || type.indexOf("gif")!=-1 || type.indexOf("svg")!=-1){
+							img.kPainterMightHasTransparent = true;
+						}
 						img.onload = img.onerror = function(){
 							img.onload = img.onerror = null;
 							fixImgOrient(img, tsf, pxX, pxY, function(img){
@@ -144,6 +148,18 @@ var KPainter = function(){
 					};
 					fileReader.readAsDataURL(imgData);
 				}else{//imgData instanceof HTMLImageElement
+					var src = imgData.src;
+					var type;
+					if("data:" == src.substring(0, 5)){
+						if("image/" == src.substring(5, 11)){
+							var type = src.substring(11, src.indexOf(";", 11));
+						}
+					}else{
+						type = src.substring(src.length - 3).toLowerCase();
+					}
+					if(type && (type.indexOf("png")!=-1 || type.indexOf("gif")!=-1 || type.indexOf("svg")!=-1)){
+						imgData.kPainterMightHasTransparent = true;
+					}
 					fixImgOrient(imgData, tsf, pxX, pxY, function(img){
 						addImage(img);
 						if(callback){ callback(); }
@@ -170,7 +186,7 @@ var KPainter = function(){
 					img.onload = img.onerror = null;
 					if(callback){ callback(img); }
 				};
-				img.src = tCvs.toDataURL("image/jpeg");
+				img.src = img.kPainterMightHasTransparent ? tCvs.toDataURL() : tCvs.toDataURL("image/jpeg");
 			}else{
 				if(callback){ callback(img); }
 			}
@@ -861,7 +877,7 @@ var KPainter = function(){
 					mainBox.children('.kPainterImgsDiv').append(img);
 					callback();
 				};
-				img.src = canvas.toDataURL('image/jpeg');
+				img.src = img.kPainterOriImg.kPainterMightHasTransparent ? canvas.toDataURL() : canvas.toDataURL("image/jpeg");
 			}else{
 				callback();
 			}
@@ -1092,6 +1108,9 @@ var KPainter = function(){
 			getInfo();
 			if(arguments.length >= 4){
 			}else{
+				if(!cropGesturer.isCropRectShowing){
+					return;
+				}
 				var cvsW = cvsRight - cvsLeft,
 					cvsH = cvsBottom - cvsTop;
 				l = (left - cvsLeft) / cvsW,
