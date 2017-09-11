@@ -317,7 +317,9 @@ var KPainter = function(){
 				if(curIndex == imgArr.length){
 					--curIndex;
 				}
-				showImg(curIndex);
+				if(curIndex >= 0){
+					showImg(curIndex);
+				}
 			}
 		};
 
@@ -484,12 +486,12 @@ var KPainter = function(){
 			left = parseFloat(img[0].style.left);
 			top = parseFloat(img[0].style.top);
 			imgTsf = img.getTransform();
-			if(Math.pow(imgTsf.a,2)+Math.pow(imgTsf.d,2)>Math.pow(imgTsf.b,2)+Math.pow(imgTsf.c,2)){
+			if(0 != imgTsf.a*imgTsf.d && 0 == imgTsf.b*imgTsf.c){
 				imgTW = imgW, imgTH = imgH;
 			}else{
 				imgTW = imgH, imgTH = imgW;
 			}
-			zoom = Math.sqrt(Math.pow(imgTsf.a,2)+Math.pow(imgTsf.b,2));
+			zoom = Math.abs(imgTsf.a+imgTsf.b);
 			bpbr = box.paddingBoxRect();
 			bcbr = box.contentBoxRect();
 			bpl = bcbr.pageX0-bpbr.pageX0;
@@ -508,7 +510,7 @@ var KPainter = function(){
 			//correctPosZoom();
 			img[0].style.left = left+'px';
 			img[0].style.top = top+'px';
-			var _zoom = Math.sqrt(Math.pow(imgTsf.a,2)+Math.pow(imgTsf.b,2));
+			var _zoom = Math.abs(imgTsf.a+imgTsf.b);
 			var rate = zoom/_zoom;
 			imgTsf.a *= rate;
 			imgTsf.b *= rate;
@@ -657,7 +659,7 @@ var KPainter = function(){
 			crop.top = _crop.top,
 			crop.width = _crop.width,
 			crop.height = _crop.height;
-			if(Math.pow(tsf.a,2)+Math.pow(tsf.d,2)>Math.pow(tsf.b,2)+Math.pow(tsf.c,2)){
+			if(0 != tsf.a*tsf.d && 0 == tsf.b*tsf.c){
 				if(sTsf){
 					tsf = new kUtil.Matrix(Math.sign(sTsf.a), 0, 0, Math.sign(sTsf.d), 0, 0);
 				}
@@ -786,7 +788,7 @@ var KPainter = function(){
 			var isSwitchedWH = false;
 			if(bTrueTransform){
 				var cvsW, cvsH;
-				if(Math.pow(tsf.a,2)+Math.pow(tsf.d,2)>Math.pow(tsf.b,2)+Math.pow(tsf.c,2)){
+				if(0 != tsf.a*tsf.d && 0 == tsf.b*tsf.c){
 					cvsW = cropW;
 					cvsH = cropH;
 				}else{
@@ -969,7 +971,8 @@ var KPainter = function(){
 		var fogBorderWidth = 10000;
 		kPainterCroper.css({"border-left-width":fogBorderWidth+"px","border-top-width":fogBorderWidth+"px","left":"-"+fogBorderWidth+"px","top":"-"+fogBorderWidth+"px"});
 		
-		var x0, y0, orientX, orientY, bpbr, bcbr, cvs = mainBox.find('> .kPainterImgsDiv > .kPainterCanvas'),
+		var x0, y0, orientX, orientY, bpbr, bcbr, bpl, bpt, 
+			cvs = mainBox.find('> .kPainterImgsDiv > .kPainterCanvas'),
 			cvsLeft, cvsTop, cvsRight, cvsBottom, cvsTW, cvsTH,
 			left, top, width, height,
 			minW = 50, minH = 50, minLeft, minTop, maxRight, maxBottom;
@@ -1012,9 +1015,11 @@ var KPainter = function(){
 			var box = mainBox;
 			bpbr = box.paddingBoxRect();
 			bcbr = box.contentBoxRect();
+			bpl = bcbr.pageX0 - bpbr.pageX0;
+			bpt = bcbr.pageY0 - bpbr.pageY0;
 			getCvsInfo();
-			left = parseFloat(kPainterCroper[0].style.left)+fogBorderWidth;
-			top = parseFloat(kPainterCroper[0].style.top)+fogBorderWidth;
+			left = parseFloat(kPainterCroper[0].style.left)+fogBorderWidth-bpl;
+			top = parseFloat(kPainterCroper[0].style.top)+fogBorderWidth-bpt;
 			width = parseFloat(kPainterCroper[0].style.width);
 			height = parseFloat(kPainterCroper[0].style.height);
 			minLeft = Math.max(0, cvsLeft);
@@ -1024,12 +1029,12 @@ var KPainter = function(){
 		};
 		var getCvsInfo = function(){
 			var tsf = cvs.getTransform();
-			var zoom = Math.sqrt(Math.pow(tsf.a,2)+Math.pow(tsf.b,2));
+			var zoom = Math.abs(tsf.a + tsf.b);
 			var bpl = bcbr.pageX0-bpbr.pageX0;
 			var bpt = bcbr.pageY0-bpbr.pageY0;
 			var cx = parseFloat(cvs[0].style.left) - bpl + cvs[0].width/2;
 			var cy = parseFloat(cvs[0].style.top) - bpl + cvs[0].height/2;
-			if(Math.pow(tsf.a,2)+Math.pow(tsf.d,2)>Math.pow(tsf.b,2)+Math.pow(tsf.c,2)){
+			if(0 != tsf.a*tsf.d && 0 == tsf.b*tsf.c){
 				cvsTW = cvs[0].width, cvsTH = cvs[0].height;
 			}else{
 				cvsTW = cvs[0].height, cvsTH = cvs[0].width;
@@ -1044,8 +1049,8 @@ var KPainter = function(){
 		mainBox.on('mouseup mouseleave', onMouseCancel);
 
 		var setCropBox = function(){
-			kPainterCroper[0].style.left = (left-fogBorderWidth)+'px';
-			kPainterCroper[0].style.top = (top-fogBorderWidth)+'px';
+			kPainterCroper[0].style.left = (left-fogBorderWidth+bpl)+'px';
+			kPainterCroper[0].style.top = (top-fogBorderWidth+bpt)+'px';
 			kPainterCroper[0].style.width = width+'px';
 			kPainterCroper[0].style.height = height+'px';
 		};
