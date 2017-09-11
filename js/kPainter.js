@@ -1,6 +1,8 @@
 var KPainter = function(){
 	var kPainter = this;
 
+	var isMobileSafari = (/iPhone/i.test(navigator.platform) || /iPod/i.test(navigator.platform) || /iPad/i.test(navigator.userAgent)) && !!navigator.appVersion.match(/(?:Version\/)([\w\._]+)/); 
+
 	var containerDiv = $([
 		'<div style="width:800px;height:600px;border:1px solid #ccc;">',
 			'<div class="kPainterBox">',
@@ -301,7 +303,7 @@ var KPainter = function(){
 			showImg(index);
 		};
 
-		kPainter.delete = function(index){
+		kPainter.del = function(index){
 			if(isEditing){ return; }
 			if(arguments.length < 1){
 				index = curIndex;
@@ -314,10 +316,6 @@ var KPainter = function(){
 			if(index == curIndex){
 				if(curIndex == imgArr.length){
 					--curIndex;
-					if(-1 == curIndex){
-						updateNumUI();
-						return;
-					}
 				}
 				showImg(curIndex);
 			}
@@ -748,8 +746,8 @@ var KPainter = function(){
 			var crop = stack[curStep].crop;
 			if(_crop.left == crop.left && 
 				_crop.top == crop.top && 
-				_crop.right == crop.right && 
-				_crop.bottom == crop.bottom
+				_crop.width == crop.width && 
+				_crop.height == crop.bottom
 			){
 				// case only do transform, don't redraw canvas
 				$(canvas).setTransform(stack[curStep].transform);
@@ -761,19 +759,31 @@ var KPainter = function(){
 
 		var showCvs = function(){
 			$(canvas).siblings().hide();
-			$(canvas).show();
 			updateCvs();
 			if(kPainter.isAutoShowCropUI){ cropGesturer.showCropRect(); }
 		};
 
-		var updateCvs = function(bTrueTransform){
+		var noAnyUseButForIosSafariBug0, noAnyUseButForIosSafariBug1;
+		var updateCvs = function(bTrueTransform, bNotShow){
+			$(canvas).hide();
 			var img = imgArr[curIndex].kPainterOriImg;
 			var process = stack[curStep];
 			var crop = process.crop;
 			var tsf = process.transform;
 			var context2d = canvas.getContext("2d");
+
+			{
+				// walk around for ios safari bug
+				noAnyUseButForIosSafariBug0 = img.width;
+				noAnyUseButForIosSafariBug1 = img.height;
+				var temp = noAnyUseButForIosSafariBug0;
+				noAnyUseButForIosSafariBug0 = noAnyUseButForIosSafariBug1;
+				noAnyUseButForIosSafariBug1 = temp;
+			}
+
 			var cropW = Math.round(img.width * crop.width),
 				cropH = Math.round(img.height * crop.height);
+			var isSwitchedWH = false;
 			if(bTrueTransform){
 				var cvsW, cvsH;
 				if(Math.pow(tsf.a,2)+Math.pow(tsf.d,2)>Math.pow(tsf.b,2)+Math.pow(tsf.c,2)){
@@ -782,6 +792,7 @@ var KPainter = function(){
 				}else{
 					cvsW = cropH;
 					cvsH = cropW;
+					isSwitchedWH = true;
 				}
 				canvas.width = cvsW;
 				canvas.height = cvsH;
@@ -792,26 +803,39 @@ var KPainter = function(){
 				//	mF = y1 - y0;
 				var drawE = cvsW/2 * (1 - tsf.a - tsf.c),//cvsW/2 * mE,
 					drawF = cvsH/2 * (1 - tsf.b - tsf.d);//cvsH/2 * mF;
-				context2d.save();
 				context2d.setTransform(tsf.a, tsf.b, tsf.c, tsf.d, drawE, drawF);
+			}else if(isMobileSafari && (cropW > 1024 || cropH > 1024)){
+				var rate = 1024 / Math.max(cropW, cropH);
+				canvas.width = Math.round(cropW * rate);
+				canvas.height = Math.round(cropH * rate);
 			}else{
 				canvas.width = cropW;
 				canvas.height = cropH;
 			}
 			if(0!=canvas.width && 0!=canvas.height){
+				var cvsDW, cvsDH;
+				if(!isSwitchedWH){
+					cvsDW = canvas.width;
+					cvsDH = canvas.height;
+				}else{
+					cvsDW = canvas.height;
+					cvsDH = canvas.width;
+				}
 				context2d.drawImage(img, 
 					Math.round(img.width*crop.left), Math.round(img.height*crop.top), 
-					cropW, cropH, 0, 0, cropW, cropH);
+					cropW, cropH, 0, 0, cvsDW, cvsDH);
 			}else{
 				canvas.width = 300;
 				canvas.height = 150;
 			}
 			if(bTrueTransform){
-				context2d.restore();
 			}else{
 				$(canvas).setTransform(tsf);
 			}
 			gesturer.setImgStyleFit();
+			if(!bNotShow){
+				$(canvas).show();
+			}
 		};
 
 		var hideCvs = function(){
@@ -856,7 +880,7 @@ var KPainter = function(){
 				_tsf = stack[0].transform;
 			if(tsf.a!=1 || tsf.b!=0 || tsf.c!=0 || tsf.d!=1 || tsf.e!=0 || tsf.f!=0){
 				mainBox.find('> .kPainterImgsDiv > .kPainterCanvas').hide();
-				updateCvs(true);
+				updateCvs(true, true);
 			}
 			var oImg = img.kPainterOriImg = imgArr[curIndex].kPainterOriImg;
 			img.kPainterProcess = stack[curStep];

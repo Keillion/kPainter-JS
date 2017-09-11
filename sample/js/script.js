@@ -7,7 +7,7 @@ if(isMobileSafari){
 	 */
 	window.history.replaceState(null, null, "#");
 }
-$("body").on("touchmove", function(ev){
+$("#imgShowMdl").on("touchmove", function(ev){
 	ev.preventDefault();
 	ev.stopPropagation();
 });
