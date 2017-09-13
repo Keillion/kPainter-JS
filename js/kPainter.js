@@ -24,7 +24,8 @@ var KPainter = function(){
 						'><div data-orient="1,-1"><i></i></div',
 						'><div data-orient="1,1"><i></i></div',
 						'><div data-orient="-1,1"><i></i></div>',
-					'</div>',
+					'</div',
+					'><div class="kPainterMover" data-orient="0,0"></div>',
 				'</div',
 				'><div class="kPainterGesturePanel"></div>',
 			'</div>',
@@ -210,19 +211,24 @@ var KPainter = function(){
 			$(img).css("transform", "scale("+zoom+")");
 			$(img).css("top", (pbr.height-img.height)/2+"px");
 			$(img).css("left", (pbr.width-img.width)/2+"px");
-			if(curIndex - 1 >= 0){
-				var pImg = imgArr[curIndex - 1];
+
+			// init hide img in 10000px
+			var hidePlace = "10000px";
+			if(imgArr.length >= 2){
+				var pImg = imgArr[(imgArr.length + curIndex - 1) % imgArr.length];
 				zoom = Math.min(cbr.width/pImg.width,cbr.height/pImg.height);
 				$(pImg).css("transform", "scale("+zoom+")");
+				pImg.style.left = hidePlace;
+				// $(pImg).css("left", (-pbr.width-pImg.width)/2+"px");
 				$(pImg).css("top", (pbr.height-pImg.height)/2+"px");
-				$(pImg).css("left", (-pbr.width-pImg.width)/2+"px");
 			}
-			if(curIndex + 1 <= imgArr.length - 1){
-				var nImg = imgArr[curIndex + 1];
+			if(imgArr.length >= 3){
+				var nImg = imgArr[(imgArr.length + curIndex + 1) % imgArr.length];
 				zoom = Math.min(cbr.width/nImg.width,cbr.height/nImg.height);
 				$(nImg).css("transform", "scale("+zoom+")");
+				nImg.style.left = hidePlace;
+				// $(nImg).css("left", (pbr.width+(pbr.width-nImg.width)/2)+"px");
 				$(nImg).css("top", (pbr.height-nImg.height)/2+"px");
-				$(nImg).css("left", (pbr.width+(pbr.width-nImg.width)/2)+"px");
 			}
 		};
 
@@ -261,15 +267,17 @@ var KPainter = function(){
 		var showImg = imgStorer.showImg = function(index){
 			var img = imgArr[index];
 			$(img).siblings().hide();
-			$(img).show();
-			if(index - 1 >= 0){
-				$(imgArr[index - 1]).show();
-			}
-			if(index + 1 <= imgArr.length - 1){
-				$(imgArr[index + 1]).show();
-			}
 			curIndex = index;
 			setImgStyleNoRatateFit();
+			$(img).show();
+			if(imgArr.length >= 2){
+				var pImg = imgArr[(imgArr.length + index - 1) % imgArr.length];
+				$(pImg).show();
+			}
+			if(imgArr.length >= 3){
+				var nImg = imgArr[(imgArr.length + index + 1) % imgArr.length];
+				$(nImg).show();
+			}
 			updateNumUI();
 		};
 
@@ -319,6 +327,8 @@ var KPainter = function(){
 				}
 				if(curIndex >= 0){
 					showImg(curIndex);
+				}else{
+					updateNumUI();
 				}
 			}
 		};
@@ -357,7 +367,7 @@ var KPainter = function(){
 		var clickButtons;
 		var zoomInRate = 2;
 		var zoomOutRate = 0.5;
-		var clickUpX, clickUpY;
+		var clickDownX, clickDownY, clickUpX, clickUpY;
 
 		var x0, y0, cx, cy, x1, y1, length,
 			bpbr, bcbr, bpl, bpt, 
@@ -387,10 +397,11 @@ var KPainter = function(){
 				//}
 				mainBox.find('> .kPainterCroper > .kPainterEdges').children().css('z-index','unset');
 				mainBox.find('> .kPainterCroper > .kPainterCorners').children().css('z-index','unset');
+				mainBox.find('> .kPainterCroper > .kPainterMover').css('z-index','unset');
 				jqEvent.preventDefault();
 				jqEvent.stopPropagation();
-				x0 = touchs[0].pageX;
-				y0 = touchs[0].pageY;
+				x0 = clickDownX = touchs[0].pageX;
+				y0 = clickDownY = touchs[0].pageY;
 				moveTouchId = touchs[0].identifier;
 				getImgInfo();
 
@@ -435,10 +446,11 @@ var KPainter = function(){
 				}
 				mainBox.find('> .kPainterCroper > .kPainterEdges').children().css('z-index','unset');
 				mainBox.find('> .kPainterCroper > .kPainterCorners').children().css('z-index','unset');
+				mainBox.find('> .kPainterCroper > .kPainterMover').css('z-index','unset');
 				jqEvent.preventDefault();
 				jqEvent.stopPropagation();
-				x0 = touchs[0].pageX;
-				y0 = touchs[0].pageY;
+				x0 = clickDownX = touchs[0].pageX;
+				y0 = clickDownY = touchs[0].pageY;
 				x1 = touchs[1].pageX;
 				y1 = touchs[1].pageY;
 				cx = (x0+x1)/2;
@@ -450,23 +462,27 @@ var KPainter = function(){
 				onMouseUpOrTouchToZero();
 			}
 		};
-
+		var maxSpdSwitchRate = 1.2, minSwitchMovLen = 50, minSwitchMovSpd = 200;
 		var onMouseUpOrTouchToZero = function(){
 			if('posZoom' == gestureStatus){
 				gestureStatus = null;
 				mainBox.find('> .kPainterCroper > .kPainterEdges').children().css('z-index', 1);
 				mainBox.find('> .kPainterCroper > .kPainterCorners').children().css('z-index', 1);
-				if(!isEditing){
-					if(left + imgW/2 + imgTW*zoom/2 < bpbr.width/2){
-						if(curIndex < imgArr.length - 1){
-							imgStorer.showImg(curIndex + 1);
-							return;
-						}
-					}else if(left + imgW/2 - imgTW*zoom/2 > bpbr.width/2){
-						if(curIndex > 0){
-							imgStorer.showImg(curIndex - 1);
-							return;
-						}
+				mainBox.find('> .kPainterCroper > .kPainterMover').css('z-index', 1);
+				if(!isEditing && 1!=imgArr.length){
+					var rate = zoom / minZoom, spdSwitchAble = false,
+						horMovLen, horMovSpd;
+					if(rate < maxSpdSwitchRate){
+						spdSwitchAble = true;
+						horMovLen = x0 - clickDownX;
+						horMovSpd = horMovLen / (((new Date()).getTime() - clickTime) / 1000);
+					}
+					if(left + imgW/2 + imgTW*zoom/2 < bpbr.width/2 || (spdSwitchAble && horMovLen < -minSwitchMovLen && horMovSpd < -minSwitchMovSpd)){
+						imgStorer.showImg((imgArr.length + curIndex + 1) % imgArr.length);
+						return;
+					}else if(left + imgW/2 - imgTW*zoom/2 > bpbr.width/2 || (spdSwitchAble && horMovLen > minSwitchMovLen && horMovSpd > minSwitchMovSpd)){
+						imgStorer.showImg((imgArr.length + curIndex - 1) % imgArr.length);
+						return;
 					}
 				}
 				correctPosZoom();
@@ -517,19 +533,19 @@ var KPainter = function(){
 			imgTsf.c *= rate;
 			imgTsf.d *= rate;
 			img.setTransform(imgTsf);
-			if(!isEditing){
-				if(curIndex - 1 >= 0){
-					var pImg = imgArr[curIndex - 1];
+			if(!isEditing && 1!=imgArr.length){
+				if(imgArr.length > 2 || left + imgW/2 > bpbr.width/2){
+					var pImg = imgArr[(imgArr.length + curIndex - 1) % imgArr.length];
 					$(pImg).css("left", (left+imgW/2-bpbr.width*(zoom/minZoom)/2-bpbr.width/2-pImg.width/2)+"px");
 				}
-				if(curIndex + 1 <= imgArr.length - 1){
-					var nImg = imgArr[curIndex + 1];
+				if(imgArr.length > 2 || left + imgW/2 <= bpbr.width/2){
+					var nImg = imgArr[(imgArr.length + curIndex + 1) % imgArr.length];
 					$(nImg).css("left", (left+imgW/2+bpbr.width*(zoom/minZoom)/2+(bpbr.width/2-nImg.width/2))+"px");
 				}
 			}
 		};
 
-		var correctPosZoom = function(){
+		var correctPosZoom = function(bIgnoreHor, bIgnoreVer){
 			if(zoom>maxZoom){
 				zoom = maxZoom;
 			}
@@ -544,17 +560,19 @@ var KPainter = function(){
 			if(bcbr.height>imgTH*zoom){
 				addH = (bcbr.height-imgTH*zoom)/2;
 			}
-			//log(addW+" "+addH);
-			//log("["+bpbr.pageX0+" "+left+" "+imgW+" "+bcbr.pageX1+"]");
-			if(left-bpl+imgW/2-imgTW*zoom/2-addW>0){
-				left = addW-imgW/2+imgTW*zoom/2+bpl;
-			}else if(bpbr.pageX0+left+imgW/2+imgTW*zoom/2+addW<bcbr.pageX1){
-				left = bcbr.pageX1-bpbr.pageX0-imgW/2-imgTW*zoom/2-addW;
+			if(!bIgnoreHor){
+				if(left-bpl+imgW/2-imgTW*zoom/2-addW>0){
+					left = addW-imgW/2+imgTW*zoom/2+bpl;
+				}else if(bpbr.pageX0+left+imgW/2+imgTW*zoom/2+addW<bcbr.pageX1){
+					left = bcbr.pageX1-bpbr.pageX0-imgW/2-imgTW*zoom/2-addW;
+				}
 			}
-			if(top-bpt+imgH/2-imgTH*zoom/2-addH>0){
-				top = addH-imgH/2+imgTH*zoom/2+bpt;
-			}else if(bpbr.pageY0+top+imgH/2+imgTH*zoom/2+addH<bcbr.pageY1){
-				top = bcbr.pageY1-bpbr.pageY0-imgH/2-imgTH*zoom/2-addH;
+			if(!bIgnoreVer){
+				if(top-bpt+imgH/2-imgTH*zoom/2-addH>0){
+					top = addH-imgH/2+imgTH*zoom/2+bpt;
+				}else if(bpbr.pageY0+top+imgH/2+imgTH*zoom/2+addH<bcbr.pageY1){
+					top = bcbr.pageY1-bpbr.pageY0-imgH/2-imgTH*zoom/2-addH;
+				}
 			}
 		};
 
@@ -600,6 +618,7 @@ var KPainter = function(){
 				y0 = touchs[0].pageY;
 				left += x0-_x0;
 				top += y0-_y0;
+				correctPosZoom(!isEditing);
 				updateImgPosZoom();
 			}else if(2 == touchs.length){
 				// zoom
@@ -622,15 +641,16 @@ var KPainter = function(){
 				if(zoom>maxZoom){
 					zoom = maxZoom;
 					rate = maxZoom / _zoom;
-					if(zoom<minZoom){
-						zoom = minZoom;
-						rate = minZoom / _zoom;
-					}
+				}
+				if(zoom<minZoom){
+					zoom = minZoom;
+					rate = minZoom / _zoom;
 				}
 				var imgCx = left+bpbr.pageX0+imgW/2,
 					imgCy = top+bpbr.pageY0+imgH/2;
 				left -= (rate-1)*(_cx-imgCx);
 				top -= (rate-1)*(_cy-imgCy);
+				correctPosZoom();
 				updateImgPosZoom();
 			}
 		});
@@ -783,53 +803,45 @@ var KPainter = function(){
 				noAnyUseButForIosSafariBug1 = temp;
 			}
 
-			var cropW = Math.round(img.width * crop.width),
-				cropH = Math.round(img.height * crop.height);
+			var sWidth = Math.round(img.width * crop.width) || 1,
+				sHeight = Math.round(img.height * crop.height) || 1;
 			var isSwitchedWH = false;
 			if(bTrueTransform){
 				var cvsW, cvsH;
 				if(0 != tsf.a*tsf.d && 0 == tsf.b*tsf.c){
-					cvsW = cropW;
-					cvsH = cropH;
+					cvsW = sWidth;
+					cvsH = sHeight;
 				}else{
-					cvsW = cropH;
-					cvsH = cropW;
+					cvsW = sHeight;
+					cvsH = sWidth;
 					isSwitchedWH = true;
 				}
 				canvas.width = cvsW;
 				canvas.height = cvsH;
-				//var x0 = -1, y0 = -1;
-				//var x1 = tsf.a*x0 + tsf.c*y0,
-				//	y1 = tsf.b*x0 + tsf.d*y0;
-				//var mE = x1 - x0,
-				//	mF = y1 - y0;
-				var drawE = cvsW/2 * (1 - tsf.a - tsf.c),//cvsW/2 * mE,
-					drawF = cvsH/2 * (1 - tsf.b - tsf.d);//cvsH/2 * mF;
+				var drawE = cvsW/2 * (1 - tsf.a - tsf.c),
+					drawF = cvsH/2 * (1 - tsf.b - tsf.d);
 				context2d.setTransform(tsf.a, tsf.b, tsf.c, tsf.d, drawE, drawF);
-			}else if(isMobileSafari && (cropW > 1024 || cropH > 1024)){
-				var rate = 1024 / Math.max(cropW, cropH);
-				canvas.width = Math.round(cropW * rate);
-				canvas.height = Math.round(cropH * rate);
+			}else if(isMobileSafari && (sWidth > 1024 || sHeight > 1024)){
+				var rate = 1024 / Math.max(sWidth, sHeight);
+				canvas.width = Math.round(sWidth * rate) || 1;
+				canvas.height = Math.round(sHeight * rate) || 1;
 			}else{
-				canvas.width = cropW;
-				canvas.height = cropH;
+				canvas.width = sWidth;
+				canvas.height = sHeight;
 			}
-			if(0!=canvas.width && 0!=canvas.height){
-				var cvsDW, cvsDH;
-				if(!isSwitchedWH){
-					cvsDW = canvas.width;
-					cvsDH = canvas.height;
-				}else{
-					cvsDW = canvas.height;
-					cvsDH = canvas.width;
-				}
-				context2d.drawImage(img, 
-					Math.round(img.width*crop.left), Math.round(img.height*crop.top), 
-					cropW, cropH, 0, 0, cvsDW, cvsDH);
+			var sx = Math.round(img.width*crop.left), 
+				sy = Math.round(img.height*crop.top);
+			if(sx == img.width){ --sx; }
+			if(sy == img.height){ --sy; }
+			var dWidth, dHeight;
+			if(!isSwitchedWH){
+				dWidth = canvas.width;
+				dHeight = canvas.height;
 			}else{
-				canvas.width = 300;
-				canvas.height = 150;
+				dWidth = canvas.height;
+				dHeight = canvas.width;
 			}
+			context2d.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, dWidth, dHeight);
 			if(bTrueTransform){
 			}else{
 				$(canvas).setTransform(tsf);
@@ -875,23 +887,24 @@ var KPainter = function(){
 		};
 
 		var saveEditedCvsAsync = function(callback, isCover){
-			var img = new Image(); //imgArr[curIndex];
 			var crop = stack[curStep].crop,
 				tsf = stack[curStep].transform,
 				_crop = stack[0].crop,
 				_tsf = stack[0].transform;
-			if(tsf.a!=1 || tsf.b!=0 || tsf.c!=0 || tsf.d!=1 || tsf.e!=0 || tsf.f!=0){
-				mainBox.find('> .kPainterImgsDiv > .kPainterCanvas').hide();
-				updateCvs(true, true);
-			}
-			var oImg = img.kPainterOriImg = imgArr[curIndex].kPainterOriImg;
-			img.kPainterProcess = stack[curStep];
+			var oImg = imgArr[curIndex].kPainterOriImg;
 			if(_tsf.a != tsf.a || _tsf.b != tsf.b || _tsf.c != tsf.c || _tsf.d != tsf.d ||
 				Math.round(oImg.width * crop.left) != Math.round(oImg.width * _crop.left) ||
 				Math.round(oImg.height * crop.top) != Math.round(oImg.height * _crop.top) ||
 				Math.round(oImg.width * (crop.left + crop.width)) != Math.round(oImg.width * (_crop.left + _crop.width)) ||
 				Math.round(oImg.height * (crop.top + crop.height)) != Math.round(oImg.height * (_crop.top + _crop.height)) )
 			{
+				var img = new Image(); //imgArr[curIndex];
+				if(isMobileSafari || tsf.a!=1 || tsf.b!=0 || tsf.c!=0 || tsf.d!=1 || tsf.e!=0 || tsf.f!=0){
+					mainBox.find('> .kPainterImgsDiv > .kPainterCanvas').hide();
+					updateCvs(true, true);
+				}
+				img.kPainterOriImg = oImg;
+				img.kPainterProcess = stack[curStep];
 				img.onload = img.onerror = function(){
 					img.onload = img.onerror = null;
 					if(isCover){
@@ -1045,7 +1058,7 @@ var KPainter = function(){
 			cvsRight = cx + hzCvsTW;
 			cvsBottom = cy + hzCvsTH;
 		};
-		mainBox.find('> .kPainterCroper > .kPainterEdges > div, > .kPainterCroper > .kPainterCorners > div').on('touchstart touchcancel touchend mousedown', onTouchChange);
+		mainBox.find('> .kPainterCroper > .kPainterEdges > div, > .kPainterCroper > .kPainterCorners > div, > .kPainterCroper > .kPainterMover').on('touchstart touchcancel touchend mousedown', onTouchChange);
 		mainBox.on('mouseup mouseleave', onMouseCancel);
 
 		var setCropBox = function(){
@@ -1108,6 +1121,20 @@ var KPainter = function(){
 						dy0 = maxBottom-height-top;
 					}
 					height += dy0;
+				}
+				if(0 == orientX && 0 == orientY){
+					if(left+dx0<minLeft){
+						dx0 = minLeft-left;
+					}else if(left+width+dx0>maxRight){
+						dx0=maxRight-width-left;
+					}
+					if(top+dy0<minTop){
+						dy0 = minTop-top;
+					}else if(top+height+dy0>maxBottom){
+						dy0 = maxBottom-height-top;
+					}
+					left += dx0;
+					top += dy0;
 				}
 				setCropBox();
 			}
