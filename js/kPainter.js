@@ -25,7 +25,7 @@ var KPainter = function(){
 						'><div data-orient="1,1"><i></i></div',
 						'><div data-orient="-1,1"><i></i></div>',
 					'</div',
-					'><div class="kPainterMover" data-orient="0,0"></div>',
+					'><div class="kPainterMover" data-orient="0,0"><div></div></div>',
 				'</div',
 				'><div class="kPainterGesturePanel"></div>',
 			'</div>',
@@ -806,6 +806,7 @@ var KPainter = function(){
 			var sWidth = Math.round(img.width * crop.width) || 1,
 				sHeight = Math.round(img.height * crop.height) || 1;
 			var isSwitchedWH = false;
+			canvas.hasCompressed = false;
 			if(bTrueTransform){
 				var cvsW, cvsH;
 				if(0 != tsf.a*tsf.d && 0 == tsf.b*tsf.c){
@@ -825,6 +826,12 @@ var KPainter = function(){
 				var rate = 1024 / Math.max(sWidth, sHeight);
 				canvas.width = Math.round(sWidth * rate) || 1;
 				canvas.height = Math.round(sHeight * rate) || 1;
+				canvas.hasCompressed = true;
+			}else if(sWidth > 4096 || sHeight > 4096){
+				var rate = 4096 / Math.max(sWidth, sHeight);
+				canvas.width = Math.round(sWidth * rate) || 1;
+				canvas.height = Math.round(sHeight * rate) || 1;
+				canvas.hasCompressed = true;
 			}else{
 				canvas.width = sWidth;
 				canvas.height = sHeight;
@@ -899,7 +906,7 @@ var KPainter = function(){
 				Math.round(oImg.height * (crop.top + crop.height)) != Math.round(oImg.height * (_crop.top + _crop.height)) )
 			{
 				var img = new Image(); //imgArr[curIndex];
-				if(isMobileSafari || tsf.a!=1 || tsf.b!=0 || tsf.c!=0 || tsf.d!=1 || tsf.e!=0 || tsf.f!=0){
+				if(canvas.hasCompressed || tsf.a!=1 || tsf.b!=0 || tsf.c!=0 || tsf.d!=1 || tsf.e!=0 || tsf.f!=0){
 					mainBox.find('> .kPainterImgsDiv > .kPainterCanvas').hide();
 					updateCvs(true, true);
 				}
