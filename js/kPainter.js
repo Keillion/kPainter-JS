@@ -61,6 +61,32 @@ var KPainter = function(){
 	};
 
 	var onStartLoading = null, onFinishLoading = null;
+	var onStartLoadingNoBreak = function(){
+		if(onStartLoading){
+			try{
+				onStartLoading();
+			}catch(ex){
+				(function(ex){
+					setTimeout(function(){
+						throw(ex);
+					},0);
+				})(ex);
+			}
+		}
+	};
+	var onFinishLoadingNoBreak = function(){
+		if(onFinishLoading){
+			try{
+				onFinishLoading();
+			}catch(ex){
+				(function(ex){
+					setTimeout(function(){
+						throw(ex);
+					},0);
+				})(ex);
+			}
+		}
+	};
 	kPainter.setOnLoading = function(onstart, onfinish){
 		onStartLoading = onstart;
 		onFinishLoading = onfinish;
@@ -102,16 +128,16 @@ var KPainter = function(){
 			}else{
 				return;
 			}
-			if(onStartLoading && typeof(onStartLoading)=='function'){try{onStartLoading();}catch(ex){}}
+			onStartLoadingNoBreak();
 			(function(callback){
 				loadImgTaskQueue.push(
 					addImageTask, 
 					null, 
 					[imgData, function(){ 
-						if(callback && typeof(callback)=='function'){ callback(); }
+						if(callback && typeof(callback)=='function'){ setTimeout(callback, 0); }
 						loadImgTaskQueue.next();
 						if(!loadImgTaskQueue.isWorking){
-							if(onFinishLoading && typeof(onFinishLoading)=='function'){try{onFinishLoading();}catch(ex){}}
+							onFinishLoadingNoBreak();
 						}
 					}]
 				);
@@ -866,7 +892,7 @@ var KPainter = function(){
 
 		kPainter.enterEdit = function(){
 			if(isEditing || -1 == curIndex){return;}
-			if(onStartLoading && typeof(onStartLoading)=='function'){try{onStartLoading();}catch(ex){}}
+			onStartLoadingNoBreak();
 			isEditing = true;
 
 			stack.length = 0;
@@ -883,7 +909,7 @@ var KPainter = function(){
 			curStep = 0;
 
 			showCvs();
-			if(onFinishLoading && typeof(onFinishLoading)=='function'){try{onFinishLoading();}catch(ex){}}
+			onFinishLoadingNoBreak();
 		};
 
 		var quitEdit = kPainter.cancelEdit = function(){
@@ -931,12 +957,12 @@ var KPainter = function(){
 
 		kPainter.saveEditAsync = function(callback, isCover){
 			if(!isEditing){return;}
-			if(onStartLoading && typeof(onStartLoading)=='function'){try{onStartLoading();}catch(ex){}}
+			onStartLoadingNoBreak();
 			setTimeout(function(){
 				saveEditedCvsAsync(function(){
 					quitEdit();
-					if(onFinishLoading && typeof(onFinishLoading)=='function'){try{onFinishLoading();}catch(ex){}}
-					if(callback && typeof(callback)=='function'){ callback(); }
+					onFinishLoadingNoBreak();
+					if(callback && typeof(callback)=='function'){ setTimeout(callback, 0); }
 				}, isCover);
 			},100);
 		};
