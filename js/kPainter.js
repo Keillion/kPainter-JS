@@ -13,6 +13,7 @@ var KPainter = function(){
 					'<div class="kPainterCells">',
 						'<div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>',
 					'</div',
+					'><div class="kPainterBigMover" data-orient="0,0"></div',
 					'><div class="kPainterEdges">',
 						'<div data-orient="-1,0"></div',
 						'><div data-orient="0,-1"></div',
@@ -25,7 +26,10 @@ var KPainter = function(){
 						'><div data-orient="1,1"><i></i></div',
 						'><div data-orient="-1,1"><i></i></div>',
 					'</div',
-					'><div class="kPainterMover" data-orient="0,0"><div></div></div>',
+					'><div class="kPainterMover" data-orient="0,0" style="display:none">',
+						'<div></div>',
+						'<svg width="20" height="20" viewBox="0 0 1792 1792" xmlns="http://www.w3.org/2000/svg"><path d="M1792 896q0 26-19 45l-256 256q-19 19-45 19t-45-19-19-45v-128h-384v384h128q26 0 45 19t19 45-19 45l-256 256q-19 19-45 19t-45-19l-256-256q-19-19-19-45t19-45 45-19h128v-384h-384v128q0 26-19 45t-45 19-45-19l-256-256q-19-19-19-45t19-45l256-256q19-19 45-19t45 19 19 45v128h384v-384h-128q-26 0-45-19t-19-45 19-45l256-256q19-19 45-19t45 19l256 256q19 19 19 45t-19 45-45 19h-128v384h384v-128q0-26 19-45t45-19 45 19l256 256q19 19 19 45z" fill="#fff"/></svg>',
+					'</div>',
 				'</div',
 				'><div class="kPainterGesturePanel"></div>',
 			'</div>',
@@ -424,6 +428,7 @@ var KPainter = function(){
 				mainBox.find('> .kPainterCroper > .kPainterEdges').children().css('z-index','unset');
 				mainBox.find('> .kPainterCroper > .kPainterCorners').children().css('z-index','unset');
 				mainBox.find('> .kPainterCroper > .kPainterMover').css('z-index','unset');
+				mainBox.find('> .kPainterCroper > .kPainterBigMover').css('z-index','unset');
 				jqEvent.preventDefault();
 				jqEvent.stopPropagation();
 				x0 = clickDownX = touchs[0].pageX;
@@ -473,6 +478,7 @@ var KPainter = function(){
 				mainBox.find('> .kPainterCroper > .kPainterEdges').children().css('z-index','unset');
 				mainBox.find('> .kPainterCroper > .kPainterCorners').children().css('z-index','unset');
 				mainBox.find('> .kPainterCroper > .kPainterMover').css('z-index','unset');
+				mainBox.find('> .kPainterCroper > .kPainterBigMover').css('z-index','unset');
 				jqEvent.preventDefault();
 				jqEvent.stopPropagation();
 				x0 = clickDownX = touchs[0].pageX;
@@ -495,6 +501,7 @@ var KPainter = function(){
 				mainBox.find('> .kPainterCroper > .kPainterEdges').children().css('z-index', 1);
 				mainBox.find('> .kPainterCroper > .kPainterCorners').children().css('z-index', 1);
 				mainBox.find('> .kPainterCroper > .kPainterMover').css('z-index', 1);
+				mainBox.find('> .kPainterCroper > .kPainterBigMover').css('z-index', 1);
 				if(!isEditing && 1!=imgArr.length){
 					var rate = zoom / minZoom, spdSwitchAble = false,
 						horMovLen, horMovSpd;
@@ -610,7 +617,7 @@ var KPainter = function(){
 			cropGesturer.setCropAll();
 		};
 
-		mainBox.children(".kPainterGesturePanel").on('touchstart touchcancel touchend mousedown', onTouchNumChange);
+		mainBox.on('touchstart touchcancel touchend mousedown', onTouchNumChange);//.children(".kPainterGesturePanel")
 		mainBox.on('mouseup mouseleave', function(jqEvent){
 			var oEvent = jqEvent.originalEvent;
 			clickUpX = oEvent.clientX, clickUpY = oEvent.clientY;
@@ -630,15 +637,12 @@ var KPainter = function(){
 			}
 			if(1 == touchs.length){
 				// move
-				if('posZoom' != gestureStatus){
+				if('posZoom' != gestureStatus || moveTouchId != touchs[0].identifier){
+					// or touch is not same
 					return;
 				}
 				jqEvent.preventDefault();
 				jqEvent.stopPropagation();
-				if(moveTouchId != touchs[0].identifier){
-					// touch is not same
-					return;
-				}
 				var _x0 = x0, _y0 = y0;
 				x0 = touchs[0].pageX;
 				y0 = touchs[0].pageY;
@@ -955,14 +959,17 @@ var KPainter = function(){
 			}
 		};
 
+		var isSavingEdit = false;
 		kPainter.saveEditAsync = function(callback, isCover){
-			if(!isEditing){return;}
+			if(!isEditing || isSavingEdit){return;}
+			isSavingEdit = true;
 			onStartLoadingNoBreak();
 			setTimeout(function(){
 				saveEditedCvsAsync(function(){
 					quitEdit();
 					onFinishLoadingNoBreak();
 					if(callback && typeof(callback)=='function'){ setTimeout(callback, 0); }
+					isSavingEdit = false;
 				}, isCover);
 			},100);
 		};
@@ -1017,7 +1024,7 @@ var KPainter = function(){
 		var fogBorderWidth = 10000;
 		kPainterCroper.css({"border-left-width":fogBorderWidth+"px","border-top-width":fogBorderWidth+"px","left":"-"+fogBorderWidth+"px","top":"-"+fogBorderWidth+"px"});
 		
-		var x0, y0, orientX, orientY, bpbr, bcbr, bpl, bpt, 
+		var x0, y0, moveTouchId, orientX, orientY, bpbr, bcbr, bpl, bpt, 
 			cvs = mainBox.find('> .kPainterImgsDiv > .kPainterCanvas'),
 			cvsLeft, cvsTop, cvsRight, cvsBottom, cvsTW, cvsTH,
 			left, top, width, height,
@@ -1039,6 +1046,7 @@ var KPainter = function(){
 				//}
 				jqEvent.preventDefault();
 				jqEvent.stopPropagation();
+				moveTouchId = touchs[0].identifier;
 				x0 = touchs[0].pageX;
 				y0 = touchs[0].pageY;
 				var arr = $(this).attr('data-orient').split(',');
@@ -1091,7 +1099,7 @@ var KPainter = function(){
 			cvsRight = cx + hzCvsTW;
 			cvsBottom = cy + hzCvsTH;
 		};
-		mainBox.find('> .kPainterCroper > .kPainterEdges > div, > .kPainterCroper > .kPainterCorners > div, > .kPainterCroper > .kPainterMover').on('touchstart touchcancel touchend mousedown', onTouchChange);
+		mainBox.find('> .kPainterCroper > .kPainterEdges > div, > .kPainterCroper > .kPainterCorners > div, > .kPainterCroper > .kPainterMover, > .kPainterCroper > .kPainterBigMover').on('touchstart touchcancel touchend mousedown', onTouchChange);
 		mainBox.on('mouseup mouseleave', onMouseCancel);
 
 		var setCropBox = function(){
@@ -1110,7 +1118,8 @@ var KPainter = function(){
 				}];
 			}
 			if(1 == touchs.length){
-				if('crop' != gestureStatus){
+				if('crop' != gestureStatus || moveTouchId != touchs[0].identifier){
+					// or touch is not same
 					return;
 				}
 				jqEvent.preventDefault();

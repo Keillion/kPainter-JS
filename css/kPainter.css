@@ -18,6 +18,7 @@
 /*.kPainterBox > .kPainterCroper > .kPainterCells{width:100%;height:100%;overflow:hidden;}
 .kPainterBox > .kPainterCroper > .kPainterCells > table{width:100%;height:100%;}
 .kPainterBox > .kPainterCroper > .kPainterCells td{border:1px solid white;}*/
+.kPainterBox > .kPainterCroper > .kPainterBigMover{position:absolute;width:100%;height:100%;left:0;top:0;z-index:1;cursor:move;}
 .kPainterBox > .kPainterCroper > .kPainterEdges > div{position:absolute;border-color:white;border-style:solid;}
 .kPainterBox > .kPainterCroper > .kPainterEdges > div:nth-child(1){width:30px;height:100%;left:-15px;top:0;z-index:1;cursor:w-resize;}
 .kPainterBox > .kPainterCroper > .kPainterEdges > div:nth-child(2){width:100%;height:30px;left:0;top:-15px;z-index:1;cursor:n-resize;}
@@ -34,7 +35,8 @@
 .kPainterBox > .kPainterCroper > .kPainterCorners > div:nth-child(2) > i{right:-16px;top:-16px;}
 .kPainterBox > .kPainterCroper > .kPainterCorners > div:nth-child(3) > i{right:-16px;bottom:-16px;}
 .kPainterBox > .kPainterCroper > .kPainterCorners > div:nth-child(4) > i{left:-16px;bottom:-16px;}
-.kPainterBox > .kPainterCroper > .kPainterMover{display:inline-block;position:absolute;border:solid 10px rgba(255,255,255,0.7);border-radius:10px;left: 15px;top:15px;z-index:1;cursor:move;}
-.kPainterBox > .kPainterCroper > .kPainterMover > div{display:inline-block;position:absolute;border:solid 15px transparent;border-radius:15px;left: -15px;top:-15px;z-index:1;cursor:move;}
+.kPainterBox > .kPainterCroper > .kPainterMover{display:inline-block;position:absolute;border:solid 12px rgba(0,0,0,0.15);border-radius:12px;left: 13px;top:13px;z-index:1;cursor:move;}
+.kPainterBox > .kPainterCroper > .kPainterMover > div{display:inline-block;position:absolute;border:solid 15px transparent;border-radius:15px;left:-15px;top:-15px;}
+.kPainterBox > .kPainterCroper > .kPainterMover > svg{display:inline-block;position:absolute;left:-10px;top:-10px;}
 /*.kPainterBox > .kPainterCroper > .kPainterCorners > div > i > span{width:16px;height:16px;display:inline-block;position:fixed;}*/
 .kPainterBox > .kPainterGesturePanel{position:absolute;left:0;top:0;width:100%;height:100%;}
