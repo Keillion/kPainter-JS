@@ -1,6 +1,7 @@
 var KPainter = function(){
 	var kPainter = this;
 
+	var isSupportTouch = "ontouchend" in document ? true : false;
 	var isMobileSafari = (/iPhone/i.test(navigator.platform) || /iPod/i.test(navigator.platform) || /iPad/i.test(navigator.userAgent)) && !!navigator.appVersion.match(/(?:Version\/)([\w\._]+)/); 
 
 	var containerDiv = $([
@@ -406,6 +407,8 @@ var KPainter = function(){
 
 		var moveTouchId;
 		var onTouchNumChange = function(jqEvent){
+			jqEvent.preventDefault();// avoid select
+			if(-1==curIndex){return;}
 			var oEvent = jqEvent.originalEvent;
 			var touchs = oEvent.targetTouches;
 			var curButtons;
@@ -417,23 +420,8 @@ var KPainter = function(){
 				curButtons = oEvent.buttons;
 			}
 			if(1 == touchs.length){
-				// move start
-				if(-1==curIndex){return;}
-				if(null == gestureStatus){
-					gestureStatus = 'posZoom';
-				}else{ return; }
-				//if('posZoom' != gestureStatus){
-				//	return;
-				//}
-				mainBox.find('> .kPainterCroper > .kPainterEdges').children().css('z-index','unset');
-				mainBox.find('> .kPainterCroper > .kPainterCorners').children().css('z-index','unset');
-				mainBox.find('> .kPainterCroper > .kPainterMover').css('z-index','unset');
-				mainBox.find('> .kPainterCroper > .kPainterBigMover').css('z-index','unset');
-				jqEvent.preventDefault();
-				jqEvent.stopPropagation();
 				x0 = clickDownX = touchs[0].pageX;
 				y0 = clickDownY = touchs[0].pageY;
-				moveTouchId = touchs[0].identifier;
 				getImgInfo();
 
 				// if dbl click zoom
@@ -466,29 +454,42 @@ var KPainter = function(){
 					top -= (rate-1)*(_cy-imgCy);
 					//updateImgPosZoom();
 				}
+				
+				// move start
+				if(null == gestureStatus){
+					gestureStatus = 'posZoom';
+				}else{ 
+					/* avoid touching from cropRect to touchPanel invoke dlclick */
+					return; 
+				}
+				// if('posZoom' != gestureStatus){
+				// 	return;
+				// }
+				mainBox.find('> .kPainterCroper > .kPainterEdges').children().css('z-index','unset');
+				mainBox.find('> .kPainterCroper > .kPainterCorners').children().css('z-index','unset');
+				mainBox.find('> .kPainterCroper > .kPainterMover').css('z-index','unset');
+				mainBox.find('> .kPainterCroper > .kPainterBigMover').css('z-index','unset');
+				moveTouchId = touchs[0].identifier;
 			}else if(2 == touchs.length){
 				// zoom start
-				if(-1==curIndex){return;}
+				x0 = clickDownX = touchs[0].pageX;
+				y0 = clickDownY = touchs[0].pageY;
 				if(null == gestureStatus){
 					gestureStatus = 'posZoom';
 				}
 				if('posZoom' != gestureStatus){
 					return;
 				}
+				getImgInfo();
 				mainBox.find('> .kPainterCroper > .kPainterEdges').children().css('z-index','unset');
 				mainBox.find('> .kPainterCroper > .kPainterCorners').children().css('z-index','unset');
 				mainBox.find('> .kPainterCroper > .kPainterMover').css('z-index','unset');
 				mainBox.find('> .kPainterCroper > .kPainterBigMover').css('z-index','unset');
-				jqEvent.preventDefault();
-				jqEvent.stopPropagation();
-				x0 = clickDownX = touchs[0].pageX;
-				y0 = clickDownY = touchs[0].pageY;
 				x1 = touchs[1].pageX;
 				y1 = touchs[1].pageY;
 				cx = (x0+x1)/2;
 				cy = (y0+y1)/2;
 				length = Math.sqrt(Math.pow(x0-x1, 2) + Math.pow(y0-y1, 2));
-				getImgInfo();
 			}else{
 				clickUpX = x0, clickUpY = y0;
 				onMouseUpOrTouchToZero();
@@ -496,6 +497,7 @@ var KPainter = function(){
 		};
 		var maxSpdSwitchRate = 1.2, minSwitchMovLen = 50, minSwitchMovSpd = 200;
 		var onMouseUpOrTouchToZero = function(){
+			if(-1==curIndex){return;}
 			if('posZoom' == gestureStatus){
 				gestureStatus = null;
 				mainBox.find('> .kPainterCroper > .kPainterEdges').children().css('z-index', 1);
@@ -518,9 +520,9 @@ var KPainter = function(){
 						return;
 					}
 				}
-				correctPosZoom();
-				updateImgPosZoom();
 			}
+			correctPosZoom();
+			updateImgPosZoom();
 		};
 
 		var getImgInfo = function(isIgnoreCrop){
@@ -617,17 +619,26 @@ var KPainter = function(){
 			cropGesturer.setCropAll();
 		};
 
-		mainBox.on('touchstart touchcancel touchend mousedown', onTouchNumChange);//.children(".kPainterGesturePanel")
-		mainBox.on('mouseup mouseleave', function(jqEvent){
-			var oEvent = jqEvent.originalEvent;
-			clickUpX = oEvent.clientX, clickUpY = oEvent.clientY;
-			onMouseUpOrTouchToZero();
-		});
+		mainBox.on((isSupportTouch?'touchstart touchcancel touchend':'mousedown'), onTouchNumChange);//.children(".kPainterGesturePanel")
+		if(!isSupportTouch){
+			mainBox.on('mouseup', function(jqEvent){
+				var oEvent = jqEvent.originalEvent;
+				clickUpX = oEvent.clientX, clickUpY = oEvent.clientY;
+				onMouseUpOrTouchToZero();
+			});
+			mainBox.on('mouseleave', function(jqEvent){
+				var oEvent = jqEvent.originalEvent;
+				if(!oEvent.buttons){return;}// mouse not pressing
+				clickUpX = x0, clickUpY = y0;
+				onMouseUpOrTouchToZero();
+			});
+		}
 		mainBox.on('contextmenu', function(jqEvent){
 			jqEvent.preventDefault();
-			jqEvent.stopPropagation();
+			//jqEvent.stopPropagation();
 		});
-		mainBox.on('touchmove mousemove', function(jqEvent){
+		mainBox.on((isSupportTouch?'touchmove':'mousemove'), function(jqEvent){
+			jqEvent.preventDefault();// avoid select
 			var touchs = jqEvent.originalEvent.targetTouches;
 			if(!touchs){
 				touchs = [{
@@ -641,8 +652,6 @@ var KPainter = function(){
 					// or touch is not same
 					return;
 				}
-				jqEvent.preventDefault();
-				jqEvent.stopPropagation();
 				var _x0 = x0, _y0 = y0;
 				x0 = touchs[0].pageX;
 				y0 = touchs[0].pageY;
@@ -655,8 +664,6 @@ var KPainter = function(){
 				if('posZoom' != gestureStatus){
 					return;
 				}
-				jqEvent.preventDefault();
-				jqEvent.stopPropagation();
 				var _cx = cx, _cy = cy, _length = length, _zoom = zoom;
 				x0 = touchs[0].pageX;
 				y0 = touchs[0].pageY;
@@ -1030,6 +1037,7 @@ var KPainter = function(){
 			left, top, width, height,
 			minW = 50, minH = 50, minLeft, minTop, maxRight, maxBottom;
 		var onTouchChange = function(jqEvent){
+			jqEvent.preventDefault();// avoid select
 			var touchs = jqEvent.originalEvent.targetTouches;
 			if(!touchs){
 				touchs = [{
@@ -1040,12 +1048,13 @@ var KPainter = function(){
 			if(1 == touchs.length){
 				if(null == gestureStatus){
 					gestureStatus = 'crop';
-				}else{ return; }
-				//if('crop' != gestureStatus){
-				//	return;
-				//}
-				jqEvent.preventDefault();
-				jqEvent.stopPropagation();
+				}else{ 
+					/* avoid like touching from left-top to top make orient change */ 
+					return; 
+				}
+				// if('crop' != gestureStatus){
+				// 	return;
+				// }
 				moveTouchId = touchs[0].identifier;
 				x0 = touchs[0].pageX;
 				y0 = touchs[0].pageY;
@@ -1099,8 +1108,19 @@ var KPainter = function(){
 			cvsRight = cx + hzCvsTW;
 			cvsBottom = cy + hzCvsTH;
 		};
-		mainBox.find('> .kPainterCroper > .kPainterEdges > div, > .kPainterCroper > .kPainterCorners > div, > .kPainterCroper > .kPainterMover, > .kPainterCroper > .kPainterBigMover').on('touchstart touchcancel touchend mousedown', onTouchChange);
-		mainBox.on('mouseup mouseleave', onMouseCancel);
+		mainBox.find('> .kPainterCroper > .kPainterEdges > div, > .kPainterCroper > .kPainterCorners > div, > .kPainterCroper > .kPainterMover, > .kPainterCroper > .kPainterBigMover')
+			.on((isSupportTouch?'touchstart touchcancel touchend':'mousedown'), onTouchChange);
+		if(!isSupportTouch){
+			mainBox.on('mouseup mouseleave', onMouseCancel);
+			mainBox.on('mouseup', function(jqEvent){
+				onMouseCancel();
+			});
+			mainBox.on('mouseleave', function(jqEvent){
+				var oEvent = jqEvent.originalEvent;
+				if(!oEvent.buttons){return;}// mouse not pressing
+				onMouseCancel();
+			});
+		}
 
 		var setCropBox = function(){
 			kPainterCroper[0].style.left = (left-fogBorderWidth+bpl)+'px';
@@ -1109,7 +1129,8 @@ var KPainter = function(){
 			kPainterCroper[0].style.height = height+'px';
 		};
 
-		mainBox.on('touchmove mousemove', function(jqEvent){
+		mainBox.on((isSupportTouch?'touchmove':'mousemove'), function(jqEvent){
+			jqEvent.preventDefault();// avoid select
 			var touchs = jqEvent.originalEvent.targetTouches;
 			if(!touchs){
 				touchs = [{
@@ -1122,8 +1143,6 @@ var KPainter = function(){
 					// or touch is not same
 					return;
 				}
-				jqEvent.preventDefault();
-				jqEvent.stopPropagation();
 				var _x0 = x0, _y0 = y0;
 				x0 = touchs[0].pageX;
 				y0 = touchs[0].pageY;
