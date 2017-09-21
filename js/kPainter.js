@@ -14,7 +14,7 @@ var KPainter = function(){
 					'<div class="kPainterCells">',
 						'<div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>',
 					'</div',
-					'><div class="kPainterBigMover" data-orient="0,0"></div',
+					'><div class="kPainterBigMover" data-orient="0,0" style="display:none"></div',
 					'><div class="kPainterEdges">',
 						'<div data-orient="-1,0"></div',
 						'><div data-orient="0,-1"></div',
@@ -27,7 +27,7 @@ var KPainter = function(){
 						'><div data-orient="1,1"><i></i></div',
 						'><div data-orient="-1,1"><i></i></div>',
 					'</div',
-					'><div class="kPainterMover" data-orient="0,0" style="display:none">',
+					'><div class="kPainterMover" data-orient="0,0">',
 						'<div></div>',
 						'<svg width="20" height="20" viewBox="0 0 1792 1792" xmlns="http://www.w3.org/2000/svg"><path d="M1792 896q0 26-19 45l-256 256q-19 19-45 19t-45-19-19-45v-128h-384v384h128q26 0 45 19t19 45-19 45l-256 256q-19 19-45 19t-45-19l-256-256q-19-19-19-45t19-45 45-19h128v-384h-384v128q0 26-19 45t-45 19-45-19l-256-256q-19-19-19-45t19-45l256-256q19-19 45-19t45 19 19 45v128h384v-384h-128q-26 0-45-19t-19-45 19-45l256-256q19-19 45-19t45 19l256 256q19 19 19 45t-19 45-45 19h-128v384h384v-128q0-26 19-45t45-19 45 19l256 256q19 19 19 45z" fill="#fff"/></svg>',
 					'</div>',
@@ -885,7 +885,21 @@ var KPainter = function(){
 				dWidth = canvas.height;
 				dHeight = canvas.width;
 			}
-			context2d.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, dWidth, dHeight);
+			if(sWidth/dWidth <= 2){
+				context2d.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, dWidth, dHeight);
+			}else{
+				var rate = sWidth/dWidth;
+				var tempCvs = document.createElement('canvas');
+				tempCvs.width = sWidth/2;
+				tempCvs.height = sHeight/2;
+				var tempCtx = tempCvs.getContext('2d');
+				tempCtx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, sWidth/2, sHeight/2);
+				var curRate = 2, _curRate = 1;
+				for(; curRate < rate; _curRate = curRate, curRate *= 2){
+					tempCtx.drawImage(tempCvs, 0, 0, sWidth/_curRate, sHeight/_curRate, 0, 0, sWidth/curRate, sHeight/curRate);
+				}
+				context2d.drawImage(tempCvs, 0, 0, sWidth/_curRate, sHeight/_curRate, 0, 0, dWidth, dHeight);
+			}
 			if(bTrueTransform){
 			}else{
 				$(canvas).setTransform(tsf);
