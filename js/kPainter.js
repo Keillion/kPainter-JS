@@ -163,7 +163,7 @@ var KPainter = function(){
 					default: break;
 				}
 				if(imgData instanceof Blob){
-					var fileReader = new FileReader();
+					/*var fileReader = new FileReader();
 					fileReader.onload = function(){
 						var fileReader = this;
 						var img = new Image();
@@ -180,7 +180,22 @@ var KPainter = function(){
 						};
 						img.src = fileReader.result;
 					};
-					fileReader.readAsDataURL(imgData);
+					fileReader.readAsDataURL(imgData);*/
+					var img = new Image();
+					var type = imgData.type;
+					if(type.indexOf("png")!=-1 || type.indexOf("gif")!=-1 || type.indexOf("svg")!=-1){
+						img.kPainterMightHasTransparent = true;
+					}
+					var objUrl = URL.createObjectURL(imgData);
+					img.onload = img.onerror = function(){
+						img.onload = img.onerror = null;
+						URL.revokeObjectURL(objUrl);
+						fixImgOrient(img, tsf, pxX, pxY, function(img){
+							addImage(img);
+							if(callback){ callback(); }
+						});
+					};
+					img.src = objUrl;
 				}else{//imgData instanceof HTMLImageElement
 					var src = imgData.src;
 					var type;
@@ -888,17 +903,18 @@ var KPainter = function(){
 			if(sWidth/dWidth <= 2){
 				context2d.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, dWidth, dHeight);
 			}else{
-				var rate = sWidth/dWidth;
 				var tempCvs = document.createElement('canvas');
-				tempCvs.width = sWidth/2;
-				tempCvs.height = sHeight/2;
+				tempCvs.width = Math.round(sWidth/2);
+				tempCvs.height = Math.round(sHeight/2);
 				var tempCtx = tempCvs.getContext('2d');
-				tempCtx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, sWidth/2, sHeight/2);
-				var curRate = 2, _curRate = 1;
-				for(; curRate < rate; _curRate = curRate, curRate *= 2){
-					tempCtx.drawImage(tempCvs, 0, 0, sWidth/_curRate, sHeight/_curRate, 0, 0, sWidth/curRate, sHeight/curRate);
+				var _sWidth, _sHeight, _dWidth = Math.round(sWidth/2), _dHeight = Math.round(sHeight/2);
+				tempCtx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, _dWidth, _dHeight);
+				for(;;){
+					_sWidth = _dWidth, _sHeight = _dHeight, _dWidth = Math.round(_sWidth/2), _dHeight = Math.round(_sHeight/2);
+					if(_dWidth <= dWidth || _dHeight <= dHeight){break;}
+					tempCtx.drawImage(tempCvs, 0, 0, _sWidth, _sHeight, 0, 0, _dWidth, _dHeight);
 				}
-				context2d.drawImage(tempCvs, 0, 0, sWidth/_curRate, sHeight/_curRate, 0, 0, dWidth, dHeight);
+				context2d.drawImage(tempCvs, 0, 0, _sWidth, _sHeight, 0, 0, dWidth, dHeight);
 			}
 			if(bTrueTransform){
 			}else{
