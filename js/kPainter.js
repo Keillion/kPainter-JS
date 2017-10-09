@@ -3,6 +3,38 @@ var KPainter = function(){
 
 	var isSupportTouch = "ontouchend" in document ? true : false;
 	var isMobileSafari = (/iPhone/i.test(navigator.platform) || /iPod/i.test(navigator.platform) || /iPad/i.test(navigator.userAgent)) && !!navigator.appVersion.match(/(?:Version\/)([\w\._]+)/); 
+	var isSupportDrawImageWithObjectUrl = false;//FF53 not support, FF56 support 
+	(function(){
+		// can use a very small base64-img, convert to blob, to test if support canvas drawImage using objectUrl
+		try{
+			var testBmpB64 = "Qk06AAAAAAAAADYAAAAoAAAAAQAAAAEAAAABABgAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAA////AA==";
+			var byteCharacters = atob(testBmpB64);
+			var byteNumArr = new Array(byteCharacters.length);
+			for(var i=0; i < byteCharacters.length; ++i){
+				byteNumArr[i] = byteCharacters.charCodeAt(i);
+			}
+			var uint8Arr = new Uint8Array(byteNumArr);
+			var blob = new Blob([uint8Arr], {type: "image/bmp"});
+			var img = new Image();
+			var objUrl;
+			img.onload = function(){
+				img.onload = null;
+				URL.revokeObjectURL(objUrl);
+				try{
+					var tCvs = document.createElement("canvas");
+					tCvs.width = 1;
+					tCvs.height = 1;
+					var ctx = tCvs.getContext("2d");
+					ctx.drawImage(img,0,0);
+					tCvs.toDataURL();
+					// warning: because async set true, sync add img immdiately, may get the value false and use FileReader Api
+					isSupportDrawImageWithObjectUrl = true;
+				}catch(ex){}
+			};
+			objUrl = URL.createObjectURL(blob);
+			img.src = objUrl;
+		}catch(ex){}
+	})();
 
 	var containerDiv = $([
 		'<div style="width:800px;height:600px;border:1px solid #ccc;">',
@@ -152,9 +184,9 @@ var KPainter = function(){
 		var addImageTask = function(imgData, callback){
 			EXIF.getData(imgData, function(){
 				// img from ios may have orientation
-				var orient = EXIF.getTag(this, 'Orientation'),
-					pxX = EXIF.getTag(this, 'PixelXDimension'),
-					pxY = EXIF.getTag(this, 'PixelYDimension');
+				var orient = EXIF.getTag(this, 'Orientation');//,
+					//pxX = EXIF.getTag(this, 'PixelXDimension'),
+					//pxY = EXIF.getTag(this, 'PixelYDimension');
 				var tsf = null;
 				switch(orient){
 					case 6: tsf = new kUtil.Matrix(0,1,-1,0,1,0); break;
@@ -163,53 +195,51 @@ var KPainter = function(){
 					default: break;
 				}
 				if(imgData instanceof Blob){
-					/*var fileReader = new FileReader();
-					fileReader.onload = function(){
-						var fileReader = this;
-						var img = new Image();
-						var type = imgData.type;
-						if(type.indexOf("png")!=-1 || type.indexOf("gif")!=-1 || type.indexOf("svg")!=-1){
-							img.kPainterMightHasTransparent = true;
-						}
-						img.onload = img.onerror = function(){
-							img.onload = img.onerror = null;
-							fixImgOrient(img, tsf, pxX, pxY, function(img){
-								addImage(img);
-								if(callback){ callback(); }
-							});
-						};
-						img.src = fileReader.result;
-					};
-					fileReader.readAsDataURL(imgData);*/
 					var img = new Image();
 					var type = imgData.type;
-					if(type.indexOf("png")!=-1 || type.indexOf("gif")!=-1 || type.indexOf("svg")!=-1){
+					if("" == type || type.indexOf("png")!=-1 || type.indexOf("gif")!=-1 || type.indexOf("svg")!=-1){
 						img.kPainterMightHasTransparent = true;
 					}
-					var objUrl = URL.createObjectURL(imgData);
+					var objUrl;
 					img.onload = img.onerror = function(){
 						img.onload = img.onerror = null;
-						URL.revokeObjectURL(objUrl);
-						fixImgOrient(img, tsf, pxX, pxY, function(img){
+						if(isSupportDrawImageWithObjectUrl){
+							URL.revokeObjectURL(objUrl);
+						}
+						fixImgOrient(img, tsf, function(img){
 							addImage(img);
 							if(callback){ callback(); }
 						});
 					};
-					img.src = objUrl;
+					if(isSupportDrawImageWithObjectUrl){
+						objUrl = URL.createObjectURL(imgData);
+						img.src = objUrl;
+					}else{
+						var fileReader = new FileReader();
+						fileReader.onload = function(){
+							img.src = fileReader.result;
+						};
+						fileReader.readAsDataURL(imgData);
+					}
 				}else{//imgData instanceof HTMLImageElement
 					var src = imgData.src;
-					var type;
+					var type = "";
 					if("data:" == src.substring(0, 5)){
 						if("image/" == src.substring(5, 11)){
-							var type = src.substring(11, src.indexOf(";", 11));
+							type = src.substring(11, src.indexOf(";", 11));
 						}
+					}else if("blob:" == src.substring(0,5)){
 					}else{
-						type = src.substring(src.length - 3).toLowerCase();
+						var idxDotLast = src.lastIndexOf(".");
+						var idxBackslashLast = src.lastIndexOf("/");
+						if(idxDotLast != -1 && idxBackslashLast != -1 && idxBackslashLast < idxDotLast){
+							type = src.substring(src.length - 3).toLowerCase();
+						}
 					}
-					if(type && (type.indexOf("png")!=-1 || type.indexOf("gif")!=-1 || type.indexOf("svg")!=-1)){
+					if("" == type || type.indexOf("png")!=-1 || type.indexOf("gif")!=-1 || type.indexOf("svg")!=-1){
 						imgData.kPainterMightHasTransparent = true;
 					}
-					fixImgOrient(imgData, tsf, pxX, pxY, function(img){
+					fixImgOrient(imgData, tsf, function(img){
 						addImage(img);
 						if(callback){ callback(); }
 					});
@@ -217,16 +247,16 @@ var KPainter = function(){
 			});
 		};
 
-		var fixImgOrient = function(img, tsf, pxX, pxY, callback){
+		var fixImgOrient = function(img, tsf, callback){
 			if(tsf){
 				// fix img from ios
 				var tCvs = document.createElement('canvas');
 				if(0 != tsf.a*tsf.d && 0 == tsf.b*tsf.c){
-					tCvs.width = pxX;
-					tCvs.height = pxY;
+					tCvs.width = img.width;
+					tCvs.height = img.height;
 				}else{
-					tCvs.width = pxY;
-					tCvs.height = pxX;
+					tCvs.width = img.height;
+					tCvs.height = img.width;
 				}
 				var ctx = tCvs.getContext('2d');
 				ctx.setTransform(tsf.a, tsf.b, tsf.c, tsf.d, tsf.e*tCvs.width, tsf.f*tCvs.height);
@@ -535,9 +565,9 @@ var KPainter = function(){
 						return;
 					}
 				}
+				correctPosZoom();
+				updateImgPosZoom();
 			}
-			correctPosZoom();
-			updateImgPosZoom();
 		};
 
 		var getImgInfo = function(isIgnoreCrop){
