@@ -1,3 +1,7 @@
+(function(lib){
+
+lib.dcsMobile = lib.dcsMobile || {};
+
 var TaskQueue = function(){
 	/// <summary>
 	/// @class TaskQueue
@@ -13,7 +17,7 @@ var TaskQueue = function(){
 	this.timeout = 100;
 };
 
-TaskQueue.prototype.push = function(task, context, arguments){
+TaskQueue.prototype.push = function(task, context, args){
 	/// <summary>
 	/// Push task. If <span>!isWorking</span>, start the task queue automatically.
 	/// </summary>
@@ -21,14 +25,14 @@ TaskQueue.prototype.push = function(task, context, arguments){
 	this._queue.push({
 		"task": task,
 		"context": context,
-		"arguments": arguments
+		"args": args
 	});
 	if(!this.isWorking){
 		this.next();
 	}
 };
 
-TaskQueue.prototype.unshift = function(task, context, arguments){
+TaskQueue.prototype.unshift = function(task, context, args){
 	/// <summary>
 	/// Push task. If <span>!isWorking</span>, start the task queue automatically.
 	/// </summary>
@@ -36,7 +40,7 @@ TaskQueue.prototype.unshift = function(task, context, arguments){
 	this._queue.unshift({
 		"task": task,
 		"context": context,
-		"arguments": arguments
+		"args": args
 	});
 	if(!this.isWorking){
 		this.next();
@@ -60,8 +64,10 @@ TaskQueue.prototype.next = function(){
 	var item = this._queue.shift();
 	var task = item.task;
 	var taskContext = item.context ? item.context : window;
-	var taskArguments = item.arguments ? item.arguments : [];
-	setTimeout(task.apply(taskContext, taskArguments), this.timeout);
+	var taskArguments = item.args ? item.args : [];
+	setTimeout(function(){
+		task.apply(taskContext, taskArguments);
+	}, this.timeout);
 };
 
 /*
@@ -75,3 +81,7 @@ TaskQueue.test = function(){
 		taskQueue.push(task, null, [i]);
 	}
 };*/
+
+lib.dcsMobile.TaskQueue = TaskQueue;
+
+})(dynamsoft.lib);
