@@ -1,7 +1,3 @@
-(function(lib){
-
-lib.dcsMobile = lib.dcsMobile || {};
-
 var TaskQueue = function(){
 	/// <summary>
 	/// @class TaskQueue
@@ -81,7 +77,3 @@ TaskQueue.test = function(){
 		taskQueue.push(task, null, [i]);
 	}
 };*/
-
-lib.dcsMobile.TaskQueue = TaskQueue;
-
-})(dynamsoft.lib);
