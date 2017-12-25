@@ -4,17 +4,12 @@ var KPainter = function(){
 	var isSupportTouch = "ontouchend" in document ? true : false;
 	var isMobileSafari = (/iPhone/i.test(navigator.platform) || /iPod/i.test(navigator.platform) || /iPad/i.test(navigator.userAgent)) && !!navigator.appVersion.match(/(?:Version\/)([\w\._]+)/); 
 	var isSupportDrawImageWithObjectUrl = false;//FF53 not support, FF56 support 
+
 	(function(){
 		// can use a very small base64-img, convert to blob, to test if support canvas drawImage using objectUrl
 		try{
 			var testBmpB64 = "Qk06AAAAAAAAADYAAAAoAAAAAQAAAAEAAAABABgAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAA////AA==";
-			var byteCharacters = atob(testBmpB64);
-			var byteNumArr = new Array(byteCharacters.length);
-			for(var i=0; i < byteCharacters.length; ++i){
-				byteNumArr[i] = byteCharacters.charCodeAt(i);
-			}
-			var uint8Arr = new Uint8Array(byteNumArr);
-			var blob = new Blob([uint8Arr], {type: "image/bmp"});
+			var blob = kUtil.convertBase64ToBlob(testBmpB64, "image/bmp");
 			var img = new Image();
 			var objUrl;
 			img.onload = function(){
@@ -46,7 +41,7 @@ var KPainter = function(){
 					'<div class="kPainterCells">',
 						'<div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>',
 					'</div',
-					'><div class="kPainterBigMover" data-orient="0,0" style="display:none"></div',
+					'><div class="kPainterBigMover" data-orient="0,0"></div',
 					'><div class="kPainterEdges">',
 						'<div data-orient="-1,0"></div',
 						'><div data-orient="0,-1"></div',
@@ -59,7 +54,7 @@ var KPainter = function(){
 						'><div data-orient="1,1"><i></i></div',
 						'><div data-orient="-1,1"><i></i></div>',
 					'</div',
-					'><div class="kPainterMover" data-orient="0,0">',
+					'><div class="kPainterMover" data-orient="0,0" style="display:none">',
 						'<div></div>',
 						'<svg width="20" height="20" viewBox="0 0 1792 1792" xmlns="http://www.w3.org/2000/svg"><path d="M1792 896q0 26-19 45l-256 256q-19 19-45 19t-45-19-19-45v-128h-384v384h128q26 0 45 19t19 45-19 45l-256 256q-19 19-45 19t-45-19l-256-256q-19-19-19-45t19-45 45-19h128v-384h-384v128q0 26-19 45t-45 19-45-19l-256-256q-19-19-19-45t19-45l256-256q19-19 45-19t45 19 19 45v128h384v-384h-128q-26 0-45-19t-19-45 19-45l256-256q19-19 45-19t45 19l256 256q19 19 19 45t-19 45-45 19h-128v384h384v-128q0-26 19-45t45-19 45 19l256 256q19 19 19 45z" fill="#fff"/></svg>',
 					'</div>',
@@ -181,8 +176,13 @@ var KPainter = function(){
 			})(callback);
 		};
 
-		var addImageTask = function(imgData, callback){
-			EXIF.getData(imgData, function(){
+	    var getTransform = function(blob, callback){
+	    	// only jpeg has exif
+	    	if("image/jpeg" != blob.type){
+	    		callback(null);
+	    		return;
+	    	}
+			EXIF.getData(blob, function(){
 				// img from ios may have orientation
 				var orient = EXIF.getTag(this, 'Orientation');//,
 					//pxX = EXIF.getTag(this, 'PixelXDimension'),
@@ -194,57 +194,91 @@ var KPainter = function(){
 					case 8: tsf = new kUtil.Matrix(0,-1,1,0,0,1); break;
 					default: break;
 				}
-				if(imgData instanceof Blob){
-					var img = new Image();
-					var type = imgData.type;
-					if("" == type || type.indexOf("png")!=-1 || type.indexOf("gif")!=-1 || type.indexOf("svg")!=-1){
-						img.kPainterMightHasTransparent = true;
-					}
-					var objUrl;
-					img.onload = img.onerror = function(){
-						img.onload = img.onerror = null;
-						if(isSupportDrawImageWithObjectUrl){
-							URL.revokeObjectURL(objUrl);
-						}
-						fixImgOrient(img, tsf, function(img){
+				callback(tsf);
+			});
+	    };
+
+	    var setImgTransparent = function(img, callback){
+
+		    var isPNGTransparent = function(blob, callback){
+	    		var hBlob = blob.slice(24,27);
+	    		var fileReader = new FileReader();
+	    		fileReader.onload = function(){
+	    			var hBinaryStr = fileReader.result;
+		    		var sign = hBinaryStr.charCodeAt(25);
+		    		callback(1 == sign/4);
+	    		}
+	    		fileReader.readAsBinaryString(blob);
+		    };
+
+	    	var type = img.kPainterBlob.type;
+	    	// todo: detect if webp transparent
+			if(type.indexOf("webp")!=-1 || type.indexOf("gif")!=-1 || type.indexOf("svg")!=-1){
+				img.kPainterMightHasTransparent = true;
+				callback();
+			}else if(type.indexOf("png")!=-1){
+				isPNGTransparent(img.kPainterBlob, function(isTransparent){
+					img.kPainterMightHasTransparent = isTransparent;
+					callback();
+				});
+			}else{ // like jpeg
+				img.kPainterMightHasTransparent = false;
+				callback();
+			}
+	    };
+
+		var addImageTask = function(imgData, callback){
+
+			var afterGetImgAndBlob = function(img){
+				setImgTransparent(img, function(){
+					getTransform(img.kPainterBlob, function(tsf){
+						fixImgOrient(img, tsf, function(){
 							addImage(img);
 							if(callback){ callback(); }
 						});
-					};
+					});
+				});
+			};
+
+			if(imgData instanceof Blob){
+				var blob = imgData;
+				var img = new Image();
+				img.kPainterBlob = blob;
+				var objUrl;
+				img.onload = img.onerror = function(){
+					img.onload = img.onerror = null;
 					if(isSupportDrawImageWithObjectUrl){
-						objUrl = URL.createObjectURL(imgData);
-						img.src = objUrl;
-					}else{
-						var fileReader = new FileReader();
-						fileReader.onload = function(){
-							img.src = fileReader.result;
-						};
-						fileReader.readAsDataURL(imgData);
+						URL.revokeObjectURL(objUrl);
 					}
-				}else{//imgData instanceof HTMLImageElement
-					var src = imgData.src;
-					var type = "";
-					if("data:" == src.substring(0, 5)){
-						if("image/" == src.substring(5, 11)){
-							type = src.substring(11, src.indexOf(";", 11));
-						}
-					}else if("blob:" == src.substring(0,5)){
-					}else{
-						var idxDotLast = src.lastIndexOf(".");
-						var idxBackslashLast = src.lastIndexOf("/");
-						if(idxDotLast != -1 && idxBackslashLast != -1 && idxBackslashLast < idxDotLast){
-							type = src.substring(src.length - 3).toLowerCase();
-						}
+					afterGetImgAndBlob(img);
+				};
+				if(isSupportDrawImageWithObjectUrl){
+					objUrl = URL.createObjectURL(blob);
+					img.src = objUrl;
+				}else{
+					var fileReader = new FileReader();
+					fileReader.onload = function(){
+						img.src = fileReader.result;
+					};
+					fileReader.readAsDataURL(blob);
+				}
+			}else{//imgData instanceof HTMLImageElement
+				var img = imgData;
+				var src = img.src;
+				if("data:" == src.substring(0, 5)){
+					var mimeType = "";
+					if("image/" == src.substring(5, 11)){
+						mimeType = src.substring(5, src.indexOf(";", 11));
 					}
-					if("" == type || type.indexOf("png")!=-1 || type.indexOf("gif")!=-1 || type.indexOf("svg")!=-1){
-						imgData.kPainterMightHasTransparent = true;
-					}
-					fixImgOrient(imgData, tsf, function(img){
-						addImage(img);
-						if(callback){ callback(); }
+					img.kPainterBlob = kUtil.convertBase64ToBlob(src.substring(src.indexOf("base64,")+7), mimeType);
+					afterGetImgAndBlob(img);
+				}else{ // src is link, such as 'https://....'
+					kUtil.convertURLToBlob(src, function(blob){
+						img.kPainterBlob = blob;
+						afterGetImgAndBlob(img);
 					});
 				}
-			});
+			}
 		};
 
 		var fixImgOrient = function(img, tsf, callback){
@@ -261,13 +295,25 @@ var KPainter = function(){
 				var ctx = tCvs.getContext('2d');
 				ctx.setTransform(tsf.a, tsf.b, tsf.c, tsf.d, tsf.e*tCvs.width, tsf.f*tCvs.height);
 				ctx.drawImage(img, 0, 0);
+				var objUrl;
 				img.onload = img.onerror = function(){
 					img.onload = img.onerror = null;
-					if(callback){ callback(img); }
+					if(isSupportDrawImageWithObjectUrl){
+						URL.revokeObjectURL(objUrl);
+					}
+					if(callback){ callback(); }
 				};
-				img.src = img.kPainterMightHasTransparent ? tCvs.toDataURL() : tCvs.toDataURL("image/jpeg");
+				if(isSupportDrawImageWithObjectUrl){
+					tCvs.toBlob(function(blob){
+						img.kPainterBlob = blob;
+						objUrl = URL.createObjectURL(blob);
+						img.src = objUrl;
+					}, (img.kPainterMightHasTransparent ? "image/png" : "image/jpeg"));
+				}else{
+					img.src = img.kPainterMightHasTransparent ? tCvs.toDataURL() : tCvs.toDataURL("image/jpeg");
+				}
 			}else{
-				if(callback){ callback(img); }
+				if(callback){ callback(); }
 			}
 		};
 
@@ -439,6 +485,7 @@ var KPainter = function(){
 
 		var clickTime = Number.NEGATIVE_INFINITY;
 		var dblClickInterval = 1000;
+		var isAfterDblclickZoom = false;
 		var maxMoveRegardAsDblClick = 8;
 		var clickButtons;
 		var zoomInRate = 2;
@@ -498,6 +545,7 @@ var KPainter = function(){
 					left -= (rate-1)*(_cx-imgCx);
 					top -= (rate-1)*(_cy-imgCy);
 					//updateImgPosZoom();
+					isAfterDblclickZoom = true;
 				}
 				
 				// move start
@@ -565,6 +613,11 @@ var KPainter = function(){
 						return;
 					}
 				}
+				correctPosZoom();
+				updateImgPosZoom();
+			}
+			if(isAfterDblclickZoom){
+				isAfterDblclickZoom = false;
 				correctPosZoom();
 				updateImgPosZoom();
 			}
@@ -868,6 +921,12 @@ var KPainter = function(){
 		};
 
 		var noAnyUseButForIosSafariBug0, noAnyUseButForIosSafariBug1;
+		var maxEditingCvsWH;
+		(function(){
+			var dpr = devicePixelRatio;
+			var w = screen.width, h = screen.height;
+			maxEditingCvsWH = Math.min(w,h)*dpr;
+		})();
 		var updateCvs = function(bTrueTransform, bNotShow){
 			$(canvas).hide();
 			var img = imgArr[curIndex].kPainterOriImg;
@@ -904,13 +963,15 @@ var KPainter = function(){
 				var drawE = cvsW/2 * (1 - tsf.a - tsf.c),
 					drawF = cvsH/2 * (1 - tsf.b - tsf.d);
 				context2d.setTransform(tsf.a, tsf.b, tsf.c, tsf.d, drawE, drawF);
-			}else if(isMobileSafari && (sWidth > 1024 || sHeight > 1024)){
-				var rate = 1024 / Math.max(sWidth, sHeight);
-				canvas.width = Math.round(sWidth * rate) || 1;
-				canvas.height = Math.round(sHeight * rate) || 1;
-				canvas.hasCompressed = true;
-			}else if(sWidth > 4096 || sHeight > 4096){
-				var rate = 4096 / Math.max(sWidth, sHeight);
+			}
+			// else if(isMobileSafari && (sWidth > 1024 || sHeight > 1024)){
+			// 	var rate = 1024 / Math.max(sWidth, sHeight);
+			// 	canvas.width = Math.round(sWidth * rate) || 1;
+			// 	canvas.height = Math.round(sHeight * rate) || 1;
+			// 	canvas.hasCompressed = true;
+			// }
+			else if(sWidth > maxEditingCvsWH || sHeight > maxEditingCvsWH){
+				var rate = maxEditingCvsWH / Math.max(sWidth, sHeight);
 				canvas.width = Math.round(sWidth * rate) || 1;
 				canvas.height = Math.round(sHeight * rate) || 1;
 				canvas.hasCompressed = true;
@@ -1009,8 +1070,12 @@ var KPainter = function(){
 				}
 				img.kPainterOriImg = oImg;
 				img.kPainterProcess = stack[curStep];
+				var objUrl;
 				img.onload = img.onerror = function(){
 					img.onload = img.onerror = null;
+					if(isSupportDrawImageWithObjectUrl){
+						URL.revokeObjectURL(objUrl);
+					}
 					if(isCover){
 						$(imgArr[curIndex]).remove();
 						imgArr.splice(curIndex, 1, img);
@@ -1020,7 +1085,15 @@ var KPainter = function(){
 					mainBox.children('.kPainterImgsDiv').append(img);
 					callback();
 				};
-				img.src = img.kPainterOriImg.kPainterMightHasTransparent ? canvas.toDataURL() : canvas.toDataURL("image/jpeg");
+				if(isSupportDrawImageWithObjectUrl){
+					canvas.toBlob(function(blob){
+						img.kPainterBlob = blob;
+						objUrl = URL.createObjectURL(blob);
+						img.src = objUrl;
+					}, (img.kPainterMightHasTransparent ? "image/png" : "image/jpeg"));
+				}else{
+					img.src = img.kPainterMightHasTransparent ? canvas.toDataURL() : canvas.toDataURL("image/jpeg");
+				}
 			}else{
 				callback();
 			}

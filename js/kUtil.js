@@ -21,6 +21,26 @@ kUtil.Matrix.dot = function(matrixA, matrixB){
 		A.b*B.e+A.d*B.f+A.f
 	);
 };
+kUtil.convertURLToBlob = function(url, callback) {
+    var http = new XMLHttpRequest();
+    http.open("GET", url, true);
+    http.responseType = "blob";
+    http.onload = function(e) {
+        if (this.status == 200 || this.status === 0) {
+            callback(this.response);
+        }
+    };
+    http.send();
+};
+kUtil.convertBase64ToBlob = function(base64Str, mimeType){
+	var byteCharacters = atob(base64Str);
+	var byteNumArr = new Array(byteCharacters.length);
+	for(var i=0; i < byteCharacters.length; ++i){
+		byteNumArr[i] = byteCharacters.charCodeAt(i);
+	}
+	var uint8Arr = new Uint8Array(byteNumArr);
+	return new Blob([uint8Arr], {type: mimeType});
+};
 (function($){
 	$.fn.borderWidth = function(){
 		var cs = window.getComputedStyle(this[0]);
