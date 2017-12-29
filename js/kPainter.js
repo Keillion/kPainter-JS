@@ -311,11 +311,11 @@ var KPainter = function(initSetting){
 				// fix img from ios
 				var tCvs = document.createElement('canvas');
 				if(0 != tsf.a*tsf.d && 0 == tsf.b*tsf.c){
-					tCvs.width = img.width;
-					tCvs.height = img.height;
+					tCvs.width = img.naturalWidth;
+					tCvs.height = img.naturalHeight;
 				}else{
-					tCvs.width = img.height;
-					tCvs.height = img.width;
+					tCvs.width = img.naturalHeight;
+					tCvs.height = img.naturalWidth;
 				}
 				var ctx = tCvs.getContext('2d');
 				ctx.setTransform(tsf.a, tsf.b, tsf.c, tsf.d, tsf.e*tCvs.width, tsf.f*tCvs.height);
@@ -353,33 +353,33 @@ var KPainter = function(initSetting){
 			}
 		};
 
+		kPainter.absoluteMD = 100000;
 		var setImgStyleNoRatateFit = function(){
 			var img = imgArr[curIndex];
 			var box = mainBox;
 			var pbr = box.paddingBoxRect();
 			var cbr = box.contentBoxRect();
-			var zoom = Math.min(cbr.width/img.width,cbr.height/img.height);
-			$(img).css("transform", "scale("+zoom+")");
-			$(img).css("top", (pbr.height-img.height)/2+"px");
-			$(img).css("left", (pbr.width-img.width)/2+"px");
+			var zoom = img.kPainterZoom = Math.min(cbr.width/img.naturalWidth,cbr.height/img.naturalHeight);
+			//img.style.transform = "";
+			img.style.width = (Math.round(img.naturalWidth * zoom) || 1) + "px"; 
+			img.style.height = (Math.round(img.naturalHeight * zoom) || 1) + "px"; 
+			img.style.left = img.style.right = img.style.top = img.style.bottom = -kPainter.absoluteMD+"px";
 
-			// init hide img in 10000px
-			var hidePlace = "10000px";
 			if(imgArr.length >= 2){
 				var pImg = imgArr[(imgArr.length + curIndex - 1) % imgArr.length];
-				zoom = Math.min(cbr.width/pImg.width,cbr.height/pImg.height);
-				$(pImg).css("transform", "scale("+zoom+")");
-				pImg.style.left = hidePlace;
-				// $(pImg).css("left", (-pbr.width-pImg.width)/2+"px");
-				$(pImg).css("top", (pbr.height-pImg.height)/2+"px");
+				zoom = Math.min(cbr.width/pImg.naturalWidth,cbr.height/pImg.naturalHeight);
+				pImg.style.width = (Math.round(pImg.naturalWidth * zoom) || 1) + "px"; 
+				pImg.style.height = (Math.round(pImg.naturalHeight * zoom) || 1) + "px"; 
+				pImg.style.right = kPainter.absoluteMD+"px";
+				pImg.style.left = pImg.style.top = pImg.style.bottom = -kPainter.absoluteMD+"px";
 			}
 			if(imgArr.length >= 3){
 				var nImg = imgArr[(imgArr.length + curIndex + 1) % imgArr.length];
-				zoom = Math.min(cbr.width/nImg.width,cbr.height/nImg.height);
-				$(nImg).css("transform", "scale("+zoom+")");
-				nImg.style.left = hidePlace;
-				// $(nImg).css("left", (pbr.width+(pbr.width-nImg.width)/2)+"px");
-				$(nImg).css("top", (pbr.height-nImg.height)/2+"px");
+				zoom = Math.min(cbr.width/nImg.naturalWidth,cbr.height/nImg.naturalHeight);
+				nImg.style.width = (Math.round(nImg.naturalWidth * zoom) || 1) + "px"; 
+				nImg.style.height = (Math.round(nImg.naturalHeight * zoom) || 1) + "px"; 
+				nImg.style.left = kPainter.absoluteMD+"px";
+				nImg.style.right = nImg.style.top = pImg.style.bottom = -kPainter.absoluteMD+"px";
 			}
 		};
 
@@ -532,7 +532,6 @@ var KPainter = function(initSetting){
 
 		var clickTime = Number.NEGATIVE_INFINITY;
 		var dblClickInterval = 1000;
-		var isAfterDblclickZoom = false;
 		var maxMoveRegardAsDblClick = 8;
 		var clickButtons;
 		var zoomInRate = 2;
@@ -541,7 +540,7 @@ var KPainter = function(initSetting){
 
 		var x0, y0, cx, cy, x1, y1, length,
 			bpbr, bcbr, bpl, bpt, 
-			img, imgTsf, imgW, imgH, imgTW, imgTH,
+			img, imgTsf, imgW, imgH, 
 			left, top, zoom, minZoom, maxZoom = 4;
 
 		var moveTouchId;
@@ -587,12 +586,11 @@ var KPainter = function(initSetting){
 						zoom = minZoom;
 						rate = minZoom / _zoom;
 					}
-					var imgCx = left+bpbr.pageX0+imgW/2,
-						imgCy = top+bpbr.pageY0+imgH/2;
+					var imgCx = left + bpbr.pageX0 + bpbr.width / 2,
+						imgCy = top + bpbr.pageY0 + bpbr.height / 2;
 					left -= (rate-1)*(_cx-imgCx);
 					top -= (rate-1)*(_cy-imgCy);
-					//updateImgPosZoom();
-					isAfterDblclickZoom = true;
+					correctPosZoom();
 				}
 				
 				// move start
@@ -602,9 +600,6 @@ var KPainter = function(initSetting){
 					/* avoid touching from cropRect to touchPanel invoke dlclick */
 					return; 
 				}
-				// if('posZoom' != gestureStatus){
-				// 	return;
-				// }
 				mainBox.find('> .kPainterCroper > .kPainterEdges').children().css('z-index','unset');
 				mainBox.find('> .kPainterCroper > .kPainterCorners').children().css('z-index','unset');
 				mainBox.find('> .kPainterCroper > .kPainterMover').css('z-index','unset');
@@ -653,12 +648,12 @@ var KPainter = function(initSetting){
 						horMovLen = x0 - clickDownX;
 						horMovSpd = horMovLen / (((new Date()).getTime() - clickTime) / 1000);
 					}
-					if(left + imgW/2 + imgTW*zoom/2 < bpbr.width/2 || (spdSwitchAble && horMovLen < -minSwitchMovLen && horMovSpd < -minSwitchMovSpd)){
+					if(left < -(Math.round(imgW*zoom) || 1)/2 || (spdSwitchAble && horMovLen < -minSwitchMovLen && horMovSpd < -minSwitchMovSpd)){
 						if(curIndex + 1 < imgArr.length || kPainter.allowedTouchMoveSwitchImgOverBoundary){
 							imgStorer.showImg((imgArr.length + curIndex + 1) % imgArr.length);
 							return;
 						}
-					}else if(left + imgW/2 - imgTW*zoom/2 > bpbr.width/2 || (spdSwitchAble && horMovLen > minSwitchMovLen && horMovSpd > minSwitchMovSpd)){
+					}else if(left > (Math.round(imgW*zoom) || 1)/2 || (spdSwitchAble && horMovLen > minSwitchMovLen && horMovSpd > minSwitchMovSpd)){
 						if(curIndex - 1 >= 0 || kPainter.allowedTouchMoveSwitchImgOverBoundary){
 							imgStorer.showImg((imgArr.length + curIndex - 1) % imgArr.length);
 							return;
@@ -668,64 +663,63 @@ var KPainter = function(initSetting){
 				correctPosZoom();
 				updateImgPosZoom();
 			}
-			if(isAfterDblclickZoom){
-				isAfterDblclickZoom = false;
-				correctPosZoom();
-				updateImgPosZoom();
-			}
 		};
 
 		var getImgInfo = function(isIgnoreCrop){
 			var box = mainBox;
 			if(isEditing){
 				img = box.find('> .kPainterImgsDiv > .kPainterCanvas');
+				imgW = img[0].width;
+				imgH = img[0].height;
 			}else{
 				img = $(imgArr[curIndex]);
+				imgW = img[0].naturalWidth;
+				imgH = img[0].naturalHeight;
 			}
-			imgW = img[0].width;
-			imgH = img[0].height;
-			left = parseFloat(img[0].style.left);
-			top = parseFloat(img[0].style.top);
+			left = parseFloat(img[0].style.left) + kPainter.absoluteMD;
+			top = parseFloat(img[0].style.top) + kPainter.absoluteMD;
 			imgTsf = img.getTransform();
 			if(0 != imgTsf.a*imgTsf.d && 0 == imgTsf.b*imgTsf.c){
-				imgTW = imgW, imgTH = imgH;
 			}else{
-				imgTW = imgH, imgTH = imgW;
+				var temp = imgW;
+				imgW = imgH, imgH = temp;
 			}
-			zoom = Math.abs(imgTsf.a+imgTsf.b);
+			zoom = img[0].kPainterZoom || 1;
 			bpbr = box.paddingBoxRect();
 			bcbr = box.contentBoxRect();
-			bpl = bcbr.pageX0-bpbr.pageX0;
-			bpt = bcbr.pageY0-bpbr.pageY0;
-			minZoom = Math.min(bcbr.width/imgTW,bcbr.height/imgTH);
+			minZoom = Math.min(bcbr.width / imgW, bcbr.height / imgH);
 			if(isEditing && cropGesturer.isCropRectShowing && !isIgnoreCrop){
 				var nRect = cropGesturer.getNeededRect();
 				minZoom = Math.max(
-					Math.max(nRect.width,imgTW*minZoom)/imgTW,
-					Math.max(nRect.height,imgTH*minZoom)/imgTH
+					Math.max(nRect.width, imgW * minZoom) / imgW,
+					Math.max(nRect.height, imgH * minZoom) / imgH
 				);
 			}
 		};
 
 		var updateImgPosZoom = function(){
 			//correctPosZoom();
-			img[0].style.left = left+'px';
-			img[0].style.top = top+'px';
-			var _zoom = Math.abs(imgTsf.a+imgTsf.b);
-			var rate = zoom/_zoom;
-			imgTsf.a *= rate;
-			imgTsf.b *= rate;
-			imgTsf.c *= rate;
-			imgTsf.d *= rate;
-			img.setTransform(imgTsf);
+			img[0].style.left = left-kPainter.absoluteMD+'px', img[0].style.right = -left-kPainter.absoluteMD+'px';
+			img[0].style.top = top-kPainter.absoluteMD+'px', img[0].style.bottom = -top-kPainter.absoluteMD+'px';
+			img[0].kPainterZoom = zoom;
+			if(0 != imgTsf.a*imgTsf.d && 0 == imgTsf.b*imgTsf.c){
+				img[0].style.width = (Math.round(imgW * zoom) || 1) + "px"; 
+				img[0].style.height = (Math.round(imgH * zoom) || 1) + "px"; 
+			}else{
+				img[0].style.height = (Math.round(imgW * zoom) || 1) + "px"; 
+				img[0].style.width = (Math.round(imgH * zoom) || 1) + "px"; 
+			}
 			if(!isEditing && 1!=imgArr.length){
-				if(imgArr.length > 2 || left + imgW/2 > bpbr.width/2){
+				var boundaryPaddingD = Math.max(0, ((Math.round(imgW*zoom) || 1) - bpbr.width) / 2);
+				if(imgArr.length > 2 || left > boundaryPaddingD){
 					var pImg = imgArr[(imgArr.length + curIndex - 1) % imgArr.length];
-					$(pImg).css("left", (left+imgW/2-bpbr.width*(zoom/minZoom)/2-bpbr.width/2-pImg.width/2)+"px");
+					pImg.style.left = left - boundaryPaddingD - bpbr.width + 'px';
+					pImg.style.right = -left + boundaryPaddingD + bpbr.width + 'px';
 				}
-				if(imgArr.length > 2 || left + imgW/2 <= bpbr.width/2){
+				if(imgArr.length > 2 || left <= -boundaryPaddingD){
 					var nImg = imgArr[(imgArr.length + curIndex + 1) % imgArr.length];
-					$(nImg).css("left", (left+imgW/2+bpbr.width*(zoom/minZoom)/2+(bpbr.width/2-nImg.width/2))+"px");
+					nImg.style.left = left + boundaryPaddingD + bpbr.width + 'px';
+					nImg.style.right = -left - boundaryPaddingD - bpbr.width + 'px';
 				}
 			}
 		};
@@ -737,26 +731,30 @@ var KPainter = function(initSetting){
 			if(zoom<minZoom){
 				zoom = minZoom;
 			}
-			var addW = 0, addH = 0;
-			// abs(bcbr.width-imgW) or abs(bcbr.height-imgH) sometimes very small but exist, so calulate both
-			if(bcbr.width>imgTW*zoom){
-				addW = (bcbr.width-imgTW*zoom)/2;
-			}
-			if(bcbr.height>imgTH*zoom){
-				addH = (bcbr.height-imgTH*zoom)/2;
-			}
 			if(!bIgnoreHor){
-				if(left-bpl+imgW/2-imgTW*zoom/2-addW>0){
-					left = addW-imgW/2+imgTW*zoom/2+bpl;
-				}else if(bpbr.pageX0+left+imgW/2+imgTW*zoom/2+addW<bcbr.pageX1){
-					left = bcbr.pageX1-bpbr.pageX0-imgW/2-imgTW*zoom/2-addW;
+				var imgVW = (Math.round(imgW*zoom) || 1);
+				if(bcbr.width>imgVW){
+					left = 0;
+				}else{
+					var addW = (imgVW - bcbr.width) / 2;
+					if(left < - addW){
+						left = -addW;
+					}else if(left > addW){
+						left = addW;
+					}
 				}
 			}
 			if(!bIgnoreVer){
-				if(top-bpt+imgH/2-imgTH*zoom/2-addH>0){
-					top = addH-imgH/2+imgTH*zoom/2+bpt;
-				}else if(bpbr.pageY0+top+imgH/2+imgTH*zoom/2+addH<bcbr.pageY1){
-					top = bcbr.pageY1-bpbr.pageY0-imgH/2-imgTH*zoom/2-addH;
+				var imgVH = (Math.round(imgH*zoom) || 1);
+				if(bcbr.height>imgVH){
+					top = 0;
+				}else{
+					var addH = (imgVH - bcbr.height) / 2;
+					if(top < - addH){
+						top = -addH;
+					}else if(top > addH){
+						top = addH;
+					}
 				}
 			}
 		};
@@ -833,8 +831,8 @@ var KPainter = function(initSetting){
 					zoom = minZoom;
 					rate = minZoom / _zoom;
 				}
-				var imgCx = left+bpbr.pageX0+imgW/2,
-					imgCy = top+bpbr.pageY0+imgH/2;
+				var imgCx = left + bpbr.pageX0 + bpbr.width / 2,
+					imgCy = top + bpbr.pageY0 + bpbr.height / 2;
 				left -= (rate-1)*(_cx-imgCx);
 				top -= (rate-1)*(_cy-imgCy);
 				correctPosZoom();
@@ -905,7 +903,7 @@ var KPainter = function(initSetting){
 			}
 			// set proper accuracy
 			var img = imgArr[curIndex];
-			var accuracy = Math.pow(10, Math.ceil(Math.max(img.width, img.height)).toString().length+2);
+			var accuracy = Math.pow(10, Math.ceil(Math.max(img.naturalWidth, img.naturalHeight)).toString().length+2);
 			crop.left = Math.round(crop.left*accuracy)/accuracy;
 			crop.top = Math.round(crop.top*accuracy)/accuracy;
 			crop.width = Math.round(crop.width*accuracy)/accuracy;
@@ -988,12 +986,12 @@ var KPainter = function(initSetting){
 
 			{
 				// walk around for ios safari bug
-				kPainter._noAnyUseButForIosSafariBug0 = img.width;
-				kPainter._noAnyUseButForIosSafariBug1 = img.height;
+				kPainter._noAnyUseButForIosSafariBug0 = img.naturalWidth;
+				kPainter._noAnyUseButForIosSafariBug1 = img.naturalHeight;
 			}
 
-			var sWidth = Math.round(img.width * crop.width) || 1,
-				sHeight = Math.round(img.height * crop.height) || 1;
+			var sWidth = Math.round(img.naturalWidth * crop.width) || 1,
+				sHeight = Math.round(img.naturalHeight * crop.height) || 1;
 			var isSwitchedWH = false;
 			canvas.hasCompressed = false;
 			if(bTrueTransform){
@@ -1027,10 +1025,10 @@ var KPainter = function(initSetting){
 				canvas.width = sWidth;
 				canvas.height = sHeight;
 			}
-			var sx = Math.round(img.width*crop.left), 
-				sy = Math.round(img.height*crop.top);
-			if(sx == img.width){ --sx; }
-			if(sy == img.height){ --sy; }
+			var sx = Math.round(img.naturalWidth*crop.left), 
+				sy = Math.round(img.naturalHeight*crop.top);
+			if(sx == img.naturalWidth){ --sx; }
+			if(sy == img.naturalHeight){ --sy; }
 			var dWidth, dHeight;
 			if(!isSwitchedWH){
 				dWidth = canvas.width;
@@ -1209,12 +1207,19 @@ var KPainter = function(initSetting){
 			kPainterCroper.hide();
 		}
 
-		var fogBorderWidth = 10000;
-		kPainterCroper.css({"border-left-width":fogBorderWidth+"px","border-top-width":fogBorderWidth+"px","left":"-"+fogBorderWidth+"px","top":"-"+fogBorderWidth+"px"});
+		kPainterCroper.css({
+			"border-left-width":kPainter.absoluteMD+"px",
+			"border-top-width":kPainter.absoluteMD+"px",
+			"border-right-width":kPainter.absoluteMD+"px",
+			"border-bottom-width":kPainter.absoluteMD+"px",
+			"left":-kPainter.absoluteMD+"px",
+			"top":-kPainter.absoluteMD+"px",
+			"right":-kPainter.absoluteMD+"px",
+			"bottom":-kPainter.absoluteMD+"px"});
 		
-		var x0, y0, moveTouchId, orientX, orientY, bpbr, bcbr, bpl, bpt, 
+		var x0, y0, moveTouchId, orientX, orientY, bpbr, bcbr, 
 			cvs = mainBox.find('> .kPainterImgsDiv > .kPainterCanvas'),
-			cvsLeft, cvsTop, cvsRight, cvsBottom, cvsTW, cvsTH,
+			cvsLeft, cvsTop, cvsRight, cvsBottom, cvsW, cvsH,
 			left, top, width, height,
 			minW = 50, minH = 50, minLeft, minTop, maxRight, maxBottom;
 		var onTouchChange = function(jqEvent){
@@ -1259,35 +1264,31 @@ var KPainter = function(initSetting){
 			var box = mainBox;
 			bpbr = box.paddingBoxRect();
 			bcbr = box.contentBoxRect();
-			bpl = bcbr.pageX0 - bpbr.pageX0;
-			bpt = bcbr.pageY0 - bpbr.pageY0;
 			getCvsInfo();
-			left = parseFloat(kPainterCroper[0].style.left)+fogBorderWidth-bpl;
-			top = parseFloat(kPainterCroper[0].style.top)+fogBorderWidth-bpt;
 			width = parseFloat(kPainterCroper[0].style.width);
 			height = parseFloat(kPainterCroper[0].style.height);
-			minLeft = Math.max(0, cvsLeft);
-			minTop = Math.max(0, cvsTop);
-			maxRight = bcbr.width - minLeft;
-			maxBottom = bcbr.height - minTop;
+			left = parseFloat(kPainterCroper[0].style.left)-width/2+kPainter.absoluteMD;
+			top = parseFloat(kPainterCroper[0].style.top)-height/2+kPainter.absoluteMD;
+			minLeft = Math.max(-bcbr.width/2, cvsLeft);
+			minTop = Math.max(-bcbr.height/2, cvsTop);
+			maxRight = Math.min(bcbr.width/2, cvsRight);
+			maxBottom = Math.min(bcbr.height/2, cvsBottom);
 		};
 		var getCvsInfo = function(){
 			var tsf = cvs.getTransform();
-			var zoom = Math.abs(tsf.a + tsf.b);
-			var bpl = bcbr.pageX0-bpbr.pageX0;
-			var bpt = bcbr.pageY0-bpbr.pageY0;
-			var cx = parseFloat(cvs[0].style.left) - bpl + cvs[0].width/2;
-			var cy = parseFloat(cvs[0].style.top) - bpl + cvs[0].height/2;
+			var zoom = cvs[0].kPainterZoom;
+			var cx = parseFloat(cvs[0].style.left)+kPainter.absoluteMD;
+			var cy = parseFloat(cvs[0].style.top)+kPainter.absoluteMD;
 			if(0 != tsf.a*tsf.d && 0 == tsf.b*tsf.c){
-				cvsTW = cvs[0].width, cvsTH = cvs[0].height;
+				cvsW = parseFloat(cvs[0].style.width), cvsH = parseFloat(cvs[0].style.height);
 			}else{
-				cvsTW = cvs[0].height, cvsTH = cvs[0].width;
+				cvsW = parseFloat(cvs[0].style.height), cvsH = parseFloat(cvs[0].style.width);
 			}
-			var hzCvsTW = cvsTW*zoom/2, hzCvsTH = cvsTH*zoom/2;
-			cvsLeft = cx - hzCvsTW;
-			cvsTop = cy - hzCvsTH;
-			cvsRight = cx + hzCvsTW;
-			cvsBottom = cy + hzCvsTH;
+			var hzCvsW = cvsW/2, hzCvsH = cvsH/2;
+			cvsLeft = cx - hzCvsW;
+			cvsTop = cy - hzCvsH;
+			cvsRight = cx + hzCvsW;
+			cvsBottom = cy + hzCvsH;
 		};
 		mainBox.find('> .kPainterCroper > .kPainterEdges > div, > .kPainterCroper > .kPainterCorners > div, > .kPainterCroper > .kPainterMover, > .kPainterCroper > .kPainterBigMover')
 			.on((isSupportTouch?'touchstart touchcancel touchend':'mousedown'), onTouchChange);
@@ -1304,8 +1305,10 @@ var KPainter = function(initSetting){
 		}
 
 		var setCropBox = function(){
-			kPainterCroper[0].style.left = (left-fogBorderWidth+bpl)+'px';
-			kPainterCroper[0].style.top = (top-fogBorderWidth+bpt)+'px';
+			kPainterCroper[0].style.left = (left+width/2-kPainter.absoluteMD)+'px';
+			kPainterCroper[0].style.right = (-left-width/2-kPainter.absoluteMD)+'px';
+			kPainterCroper[0].style.top = (top+height/2-kPainter.absoluteMD)+'px';
+			kPainterCroper[0].style.bottom = (-top-height/2-kPainter.absoluteMD)+'px';
 			kPainterCroper[0].style.width = width+'px';
 			kPainterCroper[0].style.height = height+'px';
 		};
@@ -1393,11 +1396,9 @@ var KPainter = function(initSetting){
 		};
 		cropGesturer.getNeededRect = function(){
 			getInfo();
-			var cx = (minLeft+maxRight)/2;
-			var cy = (minTop+maxBottom)/2;
 			var rect = {};
-			rect.width = 2*Math.max(cx-left, left+width-cx);
-			rect.height = 2*Math.max(cy-top, top+height-cy);
+			rect.width = 2 * Math.max(-left, left + width);
+			rect.height = 2 * Math.max(-top, top + height);
 			return rect;
 		};
 
@@ -1409,14 +1410,12 @@ var KPainter = function(initSetting){
 				if(!cropGesturer.isCropRectShowing){
 					return;
 				}
-				var cvsW = cvsRight - cvsLeft,
-					cvsH = cvsBottom - cvsTop;
 				l = (left - cvsLeft) / cvsW,
 				t = (top - cvsTop) / cvsH,
 				w = width / cvsW,
 				h = height / cvsH;
 			}
-			if(l*cvsTW < 0.5 && (1-l-w)*cvsTW < 0.5 && t*cvsTH < 0.5 && (1-t-h)*cvsTH < 0.5){
+			if(l*cvs.width < 0.5 && (1-l-w)*cvs.width < 0.5 && t*cvs.height < 0.5 && (1-t-h)*cvs.height < 0.5){
 				return;
 			}
 			editor.pushStack({
