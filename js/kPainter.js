@@ -2,14 +2,14 @@ var KPainter = function(initSetting){
 	var kPainter = this;
 
 	initSetting = initSetting || {};
-	var isSupportTouch;
+	/*var isSupportTouch;
 	if("mouse" == initSetting.gesturer){
 		isSupportTouch = false;
 	}else if("touch" == initSetting.gesturer){
 		isSupportTouch = true;
 	}else{
 		isSupportTouch = "ontouchend" in document ? true : false;
-	}
+	}*/
 	
 	var isMobileSafari = (/iPhone/i.test(navigator.platform) || /iPod/i.test(navigator.platform) || /iPad/i.test(navigator.userAgent)) && !!navigator.appVersion.match(/(?:Version\/)([\w\._]+)/); 
 	var isSupportDrawImageWithObjectUrl = false;//FF53 not support, FF56 support 
@@ -99,6 +99,8 @@ var KPainter = function(initSetting){
 	var curIndex = -1;
 	var imgArr = [];
 	var gestureStatus = null;
+	var workingPointerDevice = null;
+	/*$(document).on('touch')*/
 	var isEditing = false;
 
 	kPainter.getCurIndex = function(){ return curIndex; };
@@ -558,11 +560,22 @@ var KPainter = function(initSetting){
 			var touchs = oEvent.targetTouches;
 			var curButtons;
 			if(!touchs){
+				if(!workingPointerDevice){
+					workingPointerDevice = 'mouse';
+				}else if('mouse' != workingPointerDevice){
+					return;
+				}
 				touchs = [{
 					pageX: oEvent.clientX,
 					pageY: oEvent.clientY
 				}];
 				curButtons = oEvent.buttons;
+			}else if(touchs.length){
+				if(!workingPointerDevice){
+					workingPointerDevice = 'touch';
+				}else if('touch' != workingPointerDevice){
+					return;
+				}
 			}
 			if(1 == touchs.length){
 				x0 = clickDownX = touchs[0].pageX;
@@ -632,7 +645,7 @@ var KPainter = function(initSetting){
 				cx = (x0+x1)/2;
 				cy = (y0+y1)/2;
 				length = Math.sqrt(Math.pow(x0-x1, 2) + Math.pow(y0-y1, 2));
-			}else{
+			}else if(0 == touchs.length){
 				clickUpX = x0, clickUpY = y0;
 				onMouseUpOrTouchToZero();
 			}
@@ -642,6 +655,7 @@ var KPainter = function(initSetting){
 		var onMouseUpOrTouchToZero = function(){
 			if(-1==curIndex){return;}
 			if('posZoom' == gestureStatus){
+				workingPointerDevice = null;
 				gestureStatus = null;
 				mainBox.find('> .kPainterCroper > .kPainterEdges').children().css('z-index', 1);
 				mainBox.find('> .kPainterCroper > .kPainterCorners').children().css('z-index', 1);
@@ -774,32 +788,45 @@ var KPainter = function(initSetting){
 			cropGesturer.setCropAll();
 		};
 
-		mainBox.on((isSupportTouch?'touchstart touchcancel touchend':'mousedown'), onTouchNumChange);//.children(".kPainterGesturePanel")
-		if(!isSupportTouch){
-			mainBox.on('mouseup', function(jqEvent){
-				var oEvent = jqEvent.originalEvent;
-				clickUpX = oEvent.clientX, clickUpY = oEvent.clientY;
-				onMouseUpOrTouchToZero();
-			});
-			mainBox.on('mouseleave', function(jqEvent){
-				var oEvent = jqEvent.originalEvent;
-				if(!oEvent.buttons){return;}// mouse not pressing
-				clickUpX = x0, clickUpY = y0;
-				onMouseUpOrTouchToZero();
-			});
-		}
+		mainBox.on('touchstart touchcancel touchend mousedown', onTouchNumChange);
+		
+		mainBox.on('mouseup', function(jqEvent){
+			if('mouse' != workingPointerDevice){
+				return;
+			}
+			var oEvent = jqEvent.originalEvent;
+			clickUpX = oEvent.clientX, clickUpY = oEvent.clientY;
+			onMouseUpOrTouchToZero();
+		});
+		mainBox.on('mouseleave', function(jqEvent){
+			if('mouse' != workingPointerDevice){
+				return;
+			}
+			var oEvent = jqEvent.originalEvent;
+			if(!oEvent.buttons){return;}// mouse not pressing
+			clickUpX = x0, clickUpY = y0;
+			onMouseUpOrTouchToZero();
+		});
+		
 		mainBox.on('contextmenu', function(jqEvent){
 			jqEvent.preventDefault();
 			//jqEvent.stopPropagation();
 		});
-		mainBox.on((isSupportTouch?'touchmove':'mousemove'), function(jqEvent){
+		mainBox.on('touchmove mousemove', function(jqEvent){
 			jqEvent.preventDefault();// avoid select
 			var touchs = jqEvent.originalEvent.targetTouches;
 			if(!touchs){
+				if('mouse' != workingPointerDevice){
+					return;
+				}
 				touchs = [{
 					pageX: jqEvent.originalEvent.clientX,
 					pageY: jqEvent.originalEvent.clientY
 				}];
+			}else{// touch event
+				if('touch' != workingPointerDevice){
+					return;
+				}
 			}
 			if(1 == touchs.length){
 				// move
@@ -1254,10 +1281,21 @@ var KPainter = function(initSetting){
 			jqEvent.preventDefault();// avoid select
 			var touchs = jqEvent.originalEvent.targetTouches;
 			if(!touchs){
+				if(!workingPointerDevice){
+					workingPointerDevice = 'mouse';
+				}else if('mouse' != workingPointerDevice){
+					return;
+				}
 				touchs = [{
 					pageX: jqEvent.originalEvent.clientX,
 					pageY: jqEvent.originalEvent.clientY
 				}];
+			}else if(touchs.length){
+				if(!workingPointerDevice){
+					workingPointerDevice = 'touch';
+				}else if('touch' != workingPointerDevice){
+					return;
+				}
 			}
 			if(1 == touchs.length){
 				if(null == gestureStatus){
@@ -1276,15 +1314,14 @@ var KPainter = function(initSetting){
 				orientX = arr[0];
 				orientY = arr[1];
 				getInfo();
-			}else{
-				if('crop' == gestureStatus){
-					gestureStatus = null;
-				}
+			}else if(0 == touchs.length){
+				onMouseCancel();
 			}
 		};
 
 		var onMouseCancel = function(){
 			if('crop' == gestureStatus){
+				workingPointerDevice = null;
 				gestureStatus = null;
 			}
 		};
@@ -1319,18 +1356,23 @@ var KPainter = function(initSetting){
 			cvsBottom = cy + hzCvsH;
 		};
 		mainBox.find('> .kPainterCroper > .kPainterEdges > div, > .kPainterCroper > .kPainterCorners > div, > .kPainterCroper > .kPainterMover, > .kPainterCroper > .kPainterBigMover')
-			.on((isSupportTouch?'touchstart touchcancel touchend':'mousedown'), onTouchChange);
-		if(!isSupportTouch){
-			//mainBox.on('mouseup mouseleave', onMouseCancel);
-			mainBox.on('mouseup', function(jqEvent){
-				onMouseCancel();
-			});
-			mainBox.on('mouseleave', function(jqEvent){
-				var oEvent = jqEvent.originalEvent;
-				if(!oEvent.buttons){return;}// mouse not pressing
-				onMouseCancel();
-			});
-		}
+			.on('touchstart touchcancel touchend mousedown', onTouchChange);
+		
+		mainBox.on('mouseup', function(jqEvent){
+			if('mouse' != workingPointerDevice){
+				return;
+			}
+			onMouseCancel();
+		});
+		mainBox.on('mouseleave', function(jqEvent){
+			if('mouse' != workingPointerDevice){
+				return;
+			}
+			var oEvent = jqEvent.originalEvent;
+			if(!oEvent.buttons){return;}// mouse not pressing
+			onMouseCancel();
+		});
+		
 
 		var setCropBox = function(){
 			kPainterCroper[0].style.left = (left+width/2-kPainter.absoluteMD)+'px';
@@ -1341,14 +1383,21 @@ var KPainter = function(initSetting){
 			kPainterCroper[0].style.height = height+'px';
 		};
 
-		mainBox.on((isSupportTouch?'touchmove':'mousemove'), function(jqEvent){
+		mainBox.on('touchmove mousemove', function(jqEvent){
 			jqEvent.preventDefault();// avoid select
 			var touchs = jqEvent.originalEvent.targetTouches;
 			if(!touchs){
+				if('mouse' != workingPointerDevice){
+					return;
+				}
 				touchs = [{
 					pageX: jqEvent.originalEvent.clientX,
 					pageY: jqEvent.originalEvent.clientY
 				}];
+			}else{// touch event
+				if('touch' != workingPointerDevice){
+					return;
+				}
 			}
 			if(1 == touchs.length){
 				if('crop' != gestureStatus || moveTouchId != touchs[0].identifier){
@@ -1550,13 +1599,59 @@ var KPainter = function(initSetting){
 				return imgData;
 			};
 
+			var handleImportSrc = function(importSrc){
+				var maxwh = 256;
+
+				if(importSrc instanceof ImageData){
+					if(importSrc.width <= maxwh && importSrc.height <= maxwh){
+						return importSrc;
+					}
+					var _importSrc = importSrc;
+					var importSrc = document.createElement('canvas');
+					importSrc.width = _importSrc.width;
+					importSrc.height = _importSrc.height;
+					importSrc.getContext("2d").putImageData(_importSrc, importSrc.width, importSrc.height);
+				}
+
+				var cvs = document.createElement('canvas');
+				var cvsW = importSrc.naturalWidth || importSrc.videoWidth || importSrc.width;
+				var cvsH = importSrc.naturalHeight || importSrc.videoHeight || importSrc.height;
+				var resizeRt = 1;
+				if(cvsW > cvsH){
+					if(cvsW > maxwh){
+						resizeRt = maxwh / cvsW;
+						cvsW = maxwh;
+						cvsH = Math.round(cvsH * resizeRt) || 1;
+					}
+				}else{
+					if(cvsH > maxwh){
+						resizeRt = maxwh / cvsH;
+						cvsH = maxwh;
+						cvsW = Math.round(cvsW * resizeRt) || 1;
+					}
+				}
+				cvs.width = cvsW;
+				cvs.height = cvsH;
+				var ctx = cvs.getContext("2d");
+				ctx.drawImage(importSrc, 0, 0, cvs.width, cvs.height);
+
+				return ctx.getImageData(0, 0, cvs.width, cvs.height);
+			};
 			kPainter.documentDetect = function(callback){
-				if(gestureStatus != 'perspect'){ return; }
-				onStartLoadingNoBreak();
+				var importSrc = null;
+				if(callback && (typeof callback != 'function')){
+					importSrc = handleImportSrc(callback);
+					callback = arguments[1];
+				}
 
-				setTimeout(function(){
+				if(!importSrc){
+					if(gestureStatus != 'perspect'){ return; }
+					onStartLoadingNoBreak();
+				}
 
-					var src = new cv.matFromArray(getThumbImgData(256), cv.CV_8UC4);
+				(function(importSrc, callback){setTimeout(function(){
+
+					var src = new cv.matFromArray((importSrc ? importSrc : getThumbImgData(256)), cv.CV_8UC4);
 					let srcW = src.cols, srcH = src.rows,
 						whMin = Math.min(src.cols, src.rows);
 					cv.cvtColor(src, src, cv.ColorConversionCodes.COLOR_RGBA2GRAY.value, 0);
@@ -1714,11 +1809,13 @@ var KPainter = function(initSetting){
 						cornerPoints.push([x0 / srcW, y0 / srcH]);
 					}
 
-					setCornerPos(cornerPoints);
-					onFinishLoadingNoBreak();
-					if(typeof callback == "function"){callback();} 
+					if(!importSrc){
+						setCornerPos(cornerPoints);
+						onFinishLoadingNoBreak();
+					}
+					if(typeof callback == "function"){callback(cornerPoints);} 
 
-				},100);
+				},0);})(importSrc, callback);
 			};
 			var GetfitLine = function(inputlines, outputlines, fitlineMaxDRange, fitlineMaxRadRange, maxLength){
 				for(let i = 0; i < inputlines.length; ++i){
@@ -1757,6 +1854,7 @@ var KPainter = function(initSetting){
 			var psptBox = mainBox.children(".kPainterPerspect");
 			var psptBorderCvs = mainBox.find("> .kPainterPerspect > .kPainterPerspectCvs")[0];
 			var setCornerPos = kPainter.setFreeTransformCornerPos = function(cornerPoints){
+				if(gestureStatus != 'perspect'){ return; }
 				var cvsZoom = canvas.kPainterZoom,
 					tsf = $(canvas).getTransform();
 				var cvsVW = canvas.width * cvsZoom,
@@ -1820,16 +1918,28 @@ var KPainter = function(initSetting){
 			cornerMovers.css('right', '0');
 			cornerMovers.css('bottom', '0');
 			var moveTouchId = null, x0, y0, activedCorner;
-			cornerMovers.on((isSupportTouch?'touchstart touchcancel touchend':'mousedown'), function(jqEvent){
+			cornerMovers.on('touchstart touchcancel touchend mousedown', function(jqEvent){
 				activedCorner = this;
 				jqEvent.preventDefault();// avoid select
 				var touchs = jqEvent.originalEvent.targetTouches;
 				if(!touchs){
+					if(!workingPointerDevice){
+						workingPointerDevice = 'mouse';
+					}else if('mouse' != workingPointerDevice){
+						return;
+					}
 					touchs = [{
 						pageX: jqEvent.originalEvent.clientX,
 						pageY: jqEvent.originalEvent.clientY
 					}];
+				}else if(touchs.length){
+					if(!workingPointerDevice){
+						workingPointerDevice = 'touch';
+					}else if('touch' != workingPointerDevice){
+						return;
+					}
 				}
+
 				if(1 == touchs.length){
 					if('perspect' == gestureStatus){
 						gestureStatus = 'perspectCornerMoving';
@@ -1837,18 +1947,28 @@ var KPainter = function(initSetting){
 					moveTouchId = touchs[0].identifier;
 					x0 = touchs[0].pageX;
 					y0 = touchs[0].pageY;
-				}else if('perspectCornerMoving' == gestureStatus){
-					gestureStatus = 'perspect';
+				}else if(0 == touchs.length){
+					if('perspectCornerMoving' == gestureStatus){
+						workingPointerDevice = null;
+						gestureStatus = 'perspect';
+					}
 				}
 			});
-			mainBox.on((isSupportTouch?'touchmove':'mousemove'), function(jqEvent){
+			mainBox.on('touchmove mousemove', function(jqEvent){
 				jqEvent.preventDefault();// avoid select
 				var touchs = jqEvent.originalEvent.targetTouches;
 				if(!touchs){
+					if('mouse' != workingPointerDevice){
+						return;
+					}
 					touchs = [{
 						pageX: jqEvent.originalEvent.clientX,
 						pageY: jqEvent.originalEvent.clientY
 					}];
+				}else{// touch event
+					if('touch' != workingPointerDevice){
+						return;
+					}
 				}
 				if(1 == touchs.length){
 					if('perspectCornerMoving' != gestureStatus || moveTouchId != touchs[0].identifier){
@@ -1868,20 +1988,28 @@ var KPainter = function(initSetting){
 					drawBorderLine();
 				}
 			});
-			if(!isSupportTouch){
-				mainBox.on('mouseup', function(jqEvent){
-					if('perspectCornerMoving' == gestureStatus){
-						gestureStatus = 'perspect';
-					}
-				});
-				mainBox.on('mouseleave', function(jqEvent){
-					var oEvent = jqEvent.originalEvent;
-					if(!oEvent.buttons){return;}// mouse not pressing
-					if('perspectCornerMoving' == gestureStatus){
-						gestureStatus = 'perspect';
-					}
-				});
-			}
+			
+			mainBox.on('mouseup', function(jqEvent){
+				if('mouse' != workingPointerDevice){
+					return;
+				}
+				if('perspectCornerMoving' == gestureStatus){
+					workingPointerDevice = null;
+					gestureStatus = 'perspect';
+				}
+			});
+			mainBox.on('mouseleave', function(jqEvent){
+				if('mouse' != workingPointerDevice){
+					return;
+				}
+				var oEvent = jqEvent.originalEvent;
+				if(!oEvent.buttons){return;}// mouse not pressing
+				if('perspectCornerMoving' == gestureStatus){
+					workingPointerDevice = null;
+					gestureStatus = 'perspect';
+				}
+			});
+			
 			kPainter.freeTransform = function(callback){
 				if(gestureStatus != 'perspect'){ return; }
 				onStartLoadingNoBreak();
