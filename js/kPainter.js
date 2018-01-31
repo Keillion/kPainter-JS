@@ -79,6 +79,13 @@ var KPainter = function(initSetting){
 						'<svg width="20" height="20" viewBox="0 0 1792 1792" xmlns="http://www.w3.org/2000/svg"><path d="M1792 896q0 26-19 45l-256 256q-19 19-45 19t-45-19-19-45v-128h-384v384h128q26 0 45 19t19 45-19 45l-256 256q-19 19-45 19t-45-19l-256-256q-19-19-19-45t19-45 45-19h128v-384h-384v128q0 26-19 45t-45 19-45-19l-256-256q-19-19-19-45t19-45l256-256q19-19 45-19t45 19 19 45v128h384v-384h-128q-26 0-45-19t-19-45 19-45l256-256q19-19 45-19t45 19l256 256q19 19 19 45t-19 45-45 19h-128v384h384v-128q0-26 19-45t45-19 45 19l256 256q19 19 19 45z" fill="#fff"/></svg>',
 					'</div>',
 				'</div',
+				'><div class="kPainterPerspect" style="display:none;">',
+					'<canvas class="kPainterPerspectCvs"></canvas',
+					'><div class="kPainterPerspectCorner" data-index="0">rt</div',
+					'><div class="kPainterPerspectCorner" data-index="1">rb</div',
+					'><div class="kPainterPerspectCorner" data-index="2">lb</div',
+					'><div class="kPainterPerspectCorner" data-index="3">lt</div>',
+				'</div',
 				'><div class="kPainterGesturePanel"></div>',
 			'</div>',
 		'</div>'
@@ -254,7 +261,7 @@ var KPainter = function(initSetting){
 					getTransform(img.kPainterBlob, function(tsf){
 						fixImgOrient(img, tsf, function(){
 							addImage(img);
-							img.kPainterBlob = null;
+							//img.kPainterBlob = null;
 							if(callback){ callback(true); }
 						});
 					});
@@ -846,76 +853,92 @@ var KPainter = function(initSetting){
 		var editor = this;
 
 		var curStep;
-		/* step/process element like {crop:{left:,top:,width:,height:},transform:} */
+		/* step/process element like {crop:{left:,top:,width:,height:},transform:,srcImg:} */
 		var stack = [];
 
 		var pushStack = editor.pushStack = function(step){
 			stack.length = curStep + 1;
-			var _process = stack[curStep], 
-				_crop = _process.crop,
-				sTsf = step.transform, sCrop = step.crop,
-				tsf, crop = {};
-			if(sTsf){
-				tsf = sTsf;
-			}else{
-				tsf = _process.transform;
-			}
-			crop.left = _crop.left,
-			crop.top = _crop.top,
-			crop.width = _crop.width,
-			crop.height = _crop.height;
-			if(0 != tsf.a*tsf.d && 0 == tsf.b*tsf.c){
+			if(!step.srcImg){
+				var _process = stack[curStep], 
+					_crop = _process.crop,
+					sTsf = step.transform, sCrop = step.crop,
+					tsf, crop = {};
 				if(sTsf){
-					tsf = new kUtil.Matrix(Math.sign(sTsf.a), 0, 0, Math.sign(sTsf.d), 0, 0);
+					tsf = sTsf;
+				}else{
+					tsf = _process.transform;
 				}
-				if(sCrop){
-					if(1 == tsf.a){
-						crop.left += sCrop.left * _crop.width;
-					}else{
-						crop.left += (1 - sCrop.left - sCrop.width) * _crop.width;
+				crop.left = _crop.left,
+				crop.top = _crop.top,
+				crop.width = _crop.width,
+				crop.height = _crop.height;
+				if(0 != tsf.a*tsf.d && 0 == tsf.b*tsf.c){
+					if(sTsf){
+						tsf = new kUtil.Matrix(Math.sign(sTsf.a), 0, 0, Math.sign(sTsf.d), 0, 0);
 					}
-					if(1 == tsf.d){
-						crop.top += sCrop.top * _crop.height;
-					}else{
-						crop.top += (1 - sCrop.top - sCrop.height) * _crop.height;
+					if(sCrop){
+						if(1 == tsf.a){
+							crop.left += sCrop.left * _crop.width;
+						}else{
+							crop.left += (1 - sCrop.left - sCrop.width) * _crop.width;
+						}
+						if(1 == tsf.d){
+							crop.top += sCrop.top * _crop.height;
+						}else{
+							crop.top += (1 - sCrop.top - sCrop.height) * _crop.height;
+						}
+						crop.width *= sCrop.width;
+						crop.height *= sCrop.height;
 					}
-					crop.width *= sCrop.width;
-					crop.height *= sCrop.height;
+				}else{
+					if(sTsf){
+						tsf = new kUtil.Matrix(0, Math.sign(sTsf.b), Math.sign(sTsf.c), 0, 0, 0);
+					}
+					if(sCrop){
+						if(1 == tsf.b){
+							crop.left += sCrop.top * _crop.width;
+						}else{
+							crop.left += (1 - sCrop.top - sCrop.height) * _crop.width;
+						}
+						if(1 == tsf.c){
+							crop.top += sCrop.left * _crop.height;
+						}else{
+							crop.top += (1 - sCrop.left - sCrop.width) * _crop.height;
+						}
+						crop.width *= sCrop.height;
+						crop.height *= sCrop.width;
+					}
 				}
-			}else{
-				if(sTsf){
-					tsf = new kUtil.Matrix(0, Math.sign(sTsf.b), Math.sign(sTsf.c), 0, 0, 0);
-				}
-				if(sCrop){
-					if(1 == tsf.b){
-						crop.left += sCrop.top * _crop.width;
-					}else{
-						crop.left += (1 - sCrop.top - sCrop.height) * _crop.width;
-					}
-					if(1 == tsf.c){
-						crop.top += sCrop.left * _crop.height;
-					}else{
-						crop.top += (1 - sCrop.left - sCrop.width) * _crop.height;
-					}
-					crop.width *= sCrop.height;
-					crop.height *= sCrop.width;
-				}
-			}
-			// set proper accuracy
-			var img = imgArr[curIndex];
-			var accuracy = Math.pow(10, Math.ceil(Math.max(img.naturalWidth, img.naturalHeight)).toString().length+2);
-			crop.left = Math.round(crop.left*accuracy)/accuracy;
-			crop.top = Math.round(crop.top*accuracy)/accuracy;
-			crop.width = Math.round(crop.width*accuracy)/accuracy;
-			crop.height = Math.round(crop.height*accuracy)/accuracy;
+				// set proper accuracy
+				var img = imgArr[curIndex];
+				var accuracy = Math.pow(10, Math.ceil(Math.max(img.naturalWidth, img.naturalHeight)).toString().length+2);
+				crop.left = Math.round(crop.left*accuracy)/accuracy;
+				crop.top = Math.round(crop.top*accuracy)/accuracy;
+				crop.width = Math.round(crop.width*accuracy)/accuracy;
+				crop.height = Math.round(crop.height*accuracy)/accuracy;
 
-			var process = {
-				crop: crop,
-				transform: tsf
-			};
-			stack.push(process);
-			++curStep;
-			updateCvs();
+				var process = {
+					crop: crop,
+					transform: tsf,
+					srcImg: _process.srcImg
+				};
+				stack.push(process);
+				++curStep;
+				updateCvs();
+			}else{
+				var process = {
+					crop: {
+						left: 0,
+						top: 0,
+						width: 1,
+						height: 1
+					},
+					transform: new kUtil.Matrix(1,0,0,1,0,0),
+					srcImg: step.srcImg
+				};
+				stack.push(process);
+				++curStep;
+			}
 		};
 
 		kPainter.undo = function(){
@@ -976,22 +999,23 @@ var KPainter = function(initSetting){
 			var w = screen.width, h = screen.height;
 			maxEditingCvsWH = Math.min(w,h)*dpr;
 		})();
-		var updateCvs = function(bTrueTransform, bNotShow){
+		var updateCvs = editor.updateCvs = function(bTrueTransform, bNotShow){
 			$(canvas).hide();
-			var img = imgArr[curIndex].kPainterOriImg;
 			var process = stack[curStep];
-			var crop = process.crop;
-			var tsf = process.transform;
-			var context2d = canvas.getContext("2d");
-
+			var img = process.srcImg || imgArr[curIndex].kPainterOriImg;
 			{
 				// walk around for ios safari bug
 				kPainter._noAnyUseButForIosSafariBug0 = img.naturalWidth;
 				kPainter._noAnyUseButForIosSafariBug1 = img.naturalHeight;
 			}
+			var imgOW = img.naturalWidth;
+			var imgOH = img.naturalHeight;
+			var crop = process.crop;
+			var tsf = process.transform;
+			var context2d = canvas.getContext("2d");
 
-			var sWidth = Math.round(img.naturalWidth * crop.width) || 1,
-				sHeight = Math.round(img.naturalHeight * crop.height) || 1;
+			var sWidth = Math.round(imgOW * crop.width) || 1,
+				sHeight = Math.round(imgOH * crop.height) || 1;
 			var isSwitchedWH = false;
 			canvas.hasCompressed = false;
 			if(bTrueTransform){
@@ -1025,10 +1049,10 @@ var KPainter = function(initSetting){
 				canvas.width = sWidth;
 				canvas.height = sHeight;
 			}
-			var sx = Math.round(img.naturalWidth*crop.left), 
-				sy = Math.round(img.naturalHeight*crop.top);
-			if(sx == img.naturalWidth){ --sx; }
-			if(sy == img.naturalHeight){ --sy; }
+			var sx = Math.round(imgOW*crop.left), 
+				sy = Math.round(imgOH*crop.top);
+			if(sx == imgOW){ --sx; }
+			if(sy == imgOH){ --sy; }
 			var dWidth, dHeight;
 			if(!isSwitchedWH){
 				dWidth = canvas.width;
@@ -1054,11 +1078,12 @@ var KPainter = function(initSetting){
 				context2d.drawImage(tempCvs, 0, 0, _sWidth, _sHeight, 0, 0, dWidth, dHeight);
 			}
 			if(bTrueTransform){
+				$(canvas).setTransform(new kUtil.Matrix(1,0,0,1,0,0));
 			}else{
 				$(canvas).setTransform(tsf);
 			}
-			gesturer.setImgStyleFit();
 			if(!bNotShow){
+				gesturer.setImgStyleFit();
 				$(canvas).show();
 			}
 		};
@@ -1081,7 +1106,8 @@ var KPainter = function(initSetting){
 					width: 1,
 					height: 1
 				},
-				transform: new kUtil.Matrix(1,0,0,1,0,0)
+				transform: new kUtil.Matrix(1,0,0,1,0,0),
+				srcImg: null
 			};
 			stack.push(process);
 			curStep = 0;
@@ -1100,10 +1126,12 @@ var KPainter = function(initSetting){
 		var saveEditedCvsAsync = function(callback, isCover){
 			var crop = stack[curStep].crop,
 				tsf = stack[curStep].transform,
+				srcImg = stack[curStep].srcImg,
 				_crop = stack[0].crop,
-				_tsf = stack[0].transform;
+				_tsf = stack[0].transform,
+				_srcImg = stack[0].srcImg;
 			var oImg = imgArr[curIndex].kPainterOriImg;
-			if(_tsf.a != tsf.a || _tsf.b != tsf.b || _tsf.c != tsf.c || _tsf.d != tsf.d ||
+			if(_srcImg != srcImg || _tsf.a != tsf.a || _tsf.b != tsf.b || _tsf.c != tsf.c || _tsf.d != tsf.d ||
 				Math.round(oImg.width * crop.left) != Math.round(oImg.width * _crop.left) ||
 				Math.round(oImg.height * crop.top) != Math.round(oImg.height * _crop.top) ||
 				Math.round(oImg.width * (crop.left + crop.width)) != Math.round(oImg.width * (_crop.left + _crop.width)) ||
@@ -1133,7 +1161,7 @@ var KPainter = function(initSetting){
 				};
 				if(isSupportDrawImageWithObjectUrl){
 					cvsToBlob(canvas, function(blob){
-						//img.kPainterBlob = blob;
+						img.kPainterBlob = blob;
 						objUrl = URL.createObjectURL(blob);
 						img.src = objUrl;
 					}, (oImg.kPainterMightHasTransparent ? "image/png" : "image/jpeg"));
@@ -1293,7 +1321,7 @@ var KPainter = function(initSetting){
 		mainBox.find('> .kPainterCroper > .kPainterEdges > div, > .kPainterCroper > .kPainterCorners > div, > .kPainterCroper > .kPainterMover, > .kPainterCroper > .kPainterBigMover')
 			.on((isSupportTouch?'touchstart touchcancel touchend':'mousedown'), onTouchChange);
 		if(!isSupportTouch){
-			mainBox.on('mouseup mouseleave', onMouseCancel);
+			//mainBox.on('mouseup mouseleave', onMouseCancel);
 			mainBox.on('mouseup', function(jqEvent){
 				onMouseCancel();
 			});
@@ -1427,5 +1455,568 @@ var KPainter = function(initSetting){
 				}
 			});
 		};
+	};
+
+	var opencv = new function(){
+		var opencv = this;
+		var cvHasLoaded = false;
+
+		kPainter.loadCvScript = function(callback){
+			onStartLoadingNoBreak();
+			// CVModule for cv-wasm.js or cv.js
+			window.CVModule = {
+				cvFolder: 'js',
+				preRun: [],
+			    postRun: [],
+			    isRuntimeInitialized: false,
+				onRuntimeInitialized: function() {
+					cvHasLoaded = true;
+					console.log("Runtime is ready!");
+					onFinishLoadingNoBreak();
+					if(typeof callback == 'function'){setTimeout(callback, 0);}
+				},
+			    print: function(text) {
+			      console.log(text);
+			    },
+			    printErr: function(text) {
+			      console.log(text);
+			    },
+			    setStatus: function(text) {
+			      console.log(text);
+			    },
+			    totalDependencies: 0
+			};
+			window.CVModule.setStatus('Downloading...');
+			if(window.WebAssembly){
+				//webassembly
+				$.getScript("js/cv-wasm.js");
+			}else{
+				//asm js
+				$.getScript("js/cv.js");
+			}
+		};
+
+		(function(){
+			var PS = {
+				blurSize:5,
+				cannyThreshold1: 8,
+				cannyThreshold2Rt: 0.5,
+				houghLineRho: 1,
+				houghLineTheta: Math.PI / 180,
+				houghLineThreshold: 8,
+				houghLinesMinLength: 8,
+				houghLinesMaxGap: 3,//5
+				linesMaxRadDifToHV: Math.PI / 6,
+				fitlineMaxDRange: 2,
+				fitlineMaxRadRange: Math.PI / 18,
+				cornerMinRad: Math.PI / 3
+			};
+
+			var canvas = mainBox.find("> .kPainterImgsDiv > .kPainterCanvas")[0];
+
+			var getThumbImgData = function(maxwh) {
+				var width = canvas.width,
+					height = canvas.height,
+					resizeRt = 1;
+				if(width > height){
+					if(width > maxwh){
+						resizeRt = maxwh / width;
+						width = maxwh;
+						height = Math.round(height * resizeRt) || 1;
+					}
+				}else{
+					if(height > maxwh){
+						resizeRt = maxwh / height;
+						height = maxwh;
+						width = Math.round(width * resizeRt) || 1;
+					}
+				}
+				var tsf = $(canvas).getTransform();
+				var tsfW, tsfH;
+				if(0 != tsf.a*tsf.d && 0 == tsf.b*tsf.c){
+					tsfW = width, tsfH = height;
+				}else{
+					tsfW = height, tsfH = width;
+				}
+				var tempCvs = document.createElement("canvas");
+				tempCvs.width = tsfW;
+				tempCvs.height = tsfH;
+				var ctx = tempCvs.getContext('2d');
+				var drawE = tsfW/2 * (1 - tsf.a - tsf.c);
+				var drawF = tsfH/2 * (1 - tsf.b - tsf.d);
+				ctx.setTransform(tsf.a, tsf.b, tsf.c, tsf.d, drawE, drawF);
+				ctx.drawImage(canvas, 0, 0, width, height);
+				var imgData = ctx.getImageData(0,0,tsfW,tsfH);
+				return imgData;
+			};
+
+			kPainter.documentDetect = function(callback){
+				if(gestureStatus != 'perspect'){ return; }
+				onStartLoadingNoBreak();
+
+				setTimeout(function(){
+
+					var src = new cv.matFromArray(getThumbImgData(256), cv.CV_8UC4);
+					let srcW = src.cols, srcH = src.rows,
+						whMin = Math.min(src.cols, src.rows);
+					cv.cvtColor(src, src, cv.ColorConversionCodes.COLOR_RGBA2GRAY.value, 0);
+
+					var blurred = new cv.Mat();
+					var blurSize = PS.blurSize;
+					cv.GaussianBlur(src, blurred, [blurSize, blurSize], 0, 0, cv.BORDER_DEFAULT);
+					src.delete();
+
+					var cannyed = new cv.Mat();//cannyedTemp = new cv.Mat(),
+					cv.Canny(blurred, cannyed/*Temp*/, PS.cannyThreshold1, PS.cannyThreshold2Rt * whMin, 3/*canny_aperture_size*/, false);
+					blurred.delete();
+
+					var linesMat = new cv.Mat();//IntVectorVector();
+					cv.HoughLinesP(cannyed, linesMat, PS.houghLineRho, PS.houghLineTheta, PS.houghLineThreshold, PS.houghLinesMinLength, PS.houghLinesMaxGap);
+					cannyed.delete();
+					var lineOriPxys = linesMat.data32s();
+
+					var linePxys = [];
+					var srcWh = srcW/2;
+					var srcHh = srcH/2;
+					for(let i=0;i<lineOriPxys.length;i+=2){
+						linePxys.push(lineOriPxys[i]-srcWh);
+						linePxys.push(lineOriPxys[i+1]-srcHh);
+					}
+					linesMat.delete();
+
+					var linesAll = [];
+					for(let i=0;i<linePxys.length;i+=4){
+						let x0 = linePxys[i+0],
+							y0 = linePxys[i+1],
+							x1 = linePxys[i+2],
+							y1 = linePxys[i+3];
+						let a = y0 - y1,
+							b = x1 - x0,
+							c = x0 * y1 - x1 * y0;
+						// when 0 == c, not calc the line
+						if(0 == c){ continue; }
+						let cOrisign = c < 0 ? -1 : 1 ;
+						let r = Math.sqrt(a * a + b * b);
+						a = a / r * cOrisign;
+						b = b / r * cOrisign;
+						c = c / r * cOrisign;
+						let rad = Math.atan(a / b);
+						// line should in horizontal or vertical
+						{
+							let ra = Math.abs(rad);
+							if(ra > PS.linesMaxRadDifToHV && ra < Math.PI / 2 - PS.linesMaxRadDifToHV){
+								continue;
+							}
+						}
+						// rad anticlockwise, (-PI, PI]
+						if(b < 0){
+							if(0 == a){
+								b = -1;
+								rad = 0;
+							}else{
+								rad = -rad;
+							}
+						}else if(b > 0){
+							if(a < 0){
+								rad = -Math.PI - rad;
+							}else if(a > 0){
+								rad = Math.PI - rad;
+							}else{// 0 == a
+								b = 1;
+								rad = Math.PI;
+							}
+						}else{// 0 == b
+							if(a > 0){
+								a = 1;
+								rad = Math.PI / 2;
+							}else{// a < 0
+								a = -1;
+								rad = -Math.PI / 2;
+							}
+						}
+						let l = Math.sqrt((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0));
+						linesAll.push([a, b, c, rad, l]);
+					}
+
+					var linePreFiteds = [];
+					var lineFiteds = [];
+					var fitlineMaxDRange = PS.fitlineMaxDRange;
+					var fitlineMaxRadRange = PS.fitlineMaxRadRange;
+					GetfitLine(linesAll, linePreFiteds, fitlineMaxDRange, fitlineMaxRadRange, whMin*0.7);
+					GetfitLine(linePreFiteds, lineFiteds, fitlineMaxDRange, fitlineMaxRadRange, whMin*0.7);
+
+					var lineFiltered = [null, null, null, null];
+					for(let i = 0; i < lineFiteds.length; ++i){
+						let line = lineFiteds[i];
+						let rad = line[3];
+						let pos = null;
+						if(rad < -Math.PI * 3 / 4){
+							pos = 0;
+						}else if(rad < -Math.PI / 4){
+							pos = 1;
+						}else if(rad < Math.PI / 4){
+							pos = 2;
+						}else if(rad < Math.PI * 3 / 4){
+							pos = 3;
+						}else{
+							pos = 0;
+						}
+						if(!lineFiltered[pos]){
+							lineFiltered[pos] = line;
+						}else{
+							let _line = lineFiltered[pos];
+							let _c = _line[2], _l = _line[4],
+								c =  line[2], l = line[4];
+							if(c * l > _c * _l){
+								lineFiltered[pos] = line;
+							}
+						}
+					}
+
+					for(let i = 0; i < lineFiltered.length; ++i){
+						let line = lineFiltered[i];
+						if(null == line){
+							// line not found, use border
+							line = [];
+							lineFiltered[i] = line;
+							if(0 == i){
+								line[2] = srcHh;
+								line[3] = Math.PI;
+							}else if(1 == i){
+								line[2] = srcWh;
+								line[3] = -Math.PI / 2;
+							}else if(2 == i){
+								line[2] = srcHh;
+								line[3] = 0;
+							}else if(3 == i){
+								line[2] = srcWh;
+								line[3] = Math.PI / 2;
+							}
+						}
+						line[0] = Math.sin(line[3]);
+						line[1] = -Math.cos(line[3]);
+					}
+
+					var cornerPoints = [];
+					for(let i = 0; i < lineFiltered.length; ++i){
+						let line1 = lineFiltered[i],
+							line2 = lineFiltered[(i + 1) % lineFiltered.length];
+						let a1 = line1[0],
+							b1 = line1[1],
+							c1 = line1[2],
+							rad1 = line1[3];
+							a2 = line2[0],
+							b2 = line2[1],
+							c2 = line2[2],
+							rad2 = line2[3];
+						let x0 = (b1 * c2 - b2 * c1) / (b2 * a1 - b1 * a2),
+							y0 = (a1 * c2 - a2 * c1) / (a2 * b1 - a1 * b2);
+						cornerPoints.push([x0 / srcW, y0 / srcH]);
+					}
+
+					setCornerPos(cornerPoints);
+					onFinishLoadingNoBreak();
+					if(typeof callback == "function"){callback();} 
+
+				},100);
+			};
+			var GetfitLine = function(inputlines, outputlines, fitlineMaxDRange, fitlineMaxRadRange, maxLength){
+				for(let i = 0; i < inputlines.length; ++i){
+					let line = inputlines[i];
+					let hasFited = false;
+					for(let j = 0; j < outputlines.length; ++j){
+						let fited = outputlines[j];
+						let _rad = fited[3], rad = line[3];
+						let radDifRaw = _rad - rad;//rad
+						if(radDifRaw > Math.PI){
+							rad += Math.PI * 2;
+						}else if(radDifRaw < -Math.PI){
+							rad -= Math.PI * 2;
+						}
+						let radDif = Math.abs(_rad - rad);
+						let dDif = Math.abs(fited[2] - line[2]);//c
+						if(radDif < fitlineMaxRadRange && dDif < fitlineMaxDRange){
+							hasFited = true;
+							let _l = fited[4], l = line[4];
+							let sl = _l + l;
+							fited[2] = (fited[2] * _l + line[2] * l) / sl;
+							let nrad;
+							nrad = (_rad * _l + rad * l) / sl;
+							if(nrad > Math.PI){ nrad -= Math.PI * 2; }
+							else if(nrad <= -Math.PI){ nrad += Math.PI * 2; }
+							fited[3] = nrad;
+							fited[4] = Math.min(sl, maxLength);
+							break;
+						}
+					}
+					if(!hasFited){
+						outputlines.push([null,null,line[2],line[3], line[4]]);
+					}
+				}
+			};
+			var psptBox = mainBox.children(".kPainterPerspect");
+			var psptBorderCvs = mainBox.find("> .kPainterPerspect > .kPainterPerspectCvs")[0];
+			var setCornerPos = kPainter.setFreeTransformCornerPos = function(cornerPoints){
+				var cvsZoom = canvas.kPainterZoom,
+					tsf = $(canvas).getTransform();
+				var cvsVW = canvas.width * cvsZoom,
+					cvsVH = canvas.height * cvsZoom;
+				if(0 != tsf.a*tsf.d && 0 == tsf.b*tsf.c){}else{
+					var temp = cvsVW; cvsVW = cvsVH; cvsVH = temp;
+				}
+				var rect = mainBox.borderBoxRect();
+				var mbwh = rect.width / 2,
+					mbhh = rect.height / 2;
+				for(var i = 0; i < cornerMovers.length; ++i){
+					var cornerMover = cornerMovers[i];
+					var index = $(cornerMover).attr('data-index');
+					var p = cornerPoints[index];
+					var l = cvsVW * p[0], t = cvsVH * p[1];
+					if(l < -mbwh){
+						l = -mbwh;
+					}else if(l > mbwh){
+						l = mbwh;
+					}
+					if(t < -mbhh){
+						t = -mbhh;
+					}else if(t > mbhh){
+						t = mbhh;
+					}
+					cornerMover.style.left = l + 'px';
+					cornerMover.style.right = -l + 'px';
+					cornerMover.style.top = t + 'px';
+					cornerMover.style.bottom = -t + 'px';
+				}
+				drawBorderLine();
+				psptBox.show();
+			};
+			var drawBorderLine = function(){
+				var rect = mainBox.borderBoxRect();
+				psptBorderCvs.width = Math.round(rect.width);
+				psptBorderCvs.height = Math.round(rect.height);
+				var cornerPointLTs = [];
+				for(var i = 0; i < cornerMovers.length; ++i){
+					cornerPointLTs.push([
+						Math.round(parseFloat(cornerMovers[i].style.left) + rect.width / 2),
+						Math.round(parseFloat(cornerMovers[i].style.top) + rect.height / 2)
+					]);
+				}
+				var ctx = psptBorderCvs.getContext('2d');
+				ctx.strokeStyle = "#0F0";
+				ctx.lineWidth = 3;
+				ctx.setLineDash([10, 5]);
+				ctx.beginPath();
+				ctx.moveTo(cornerPointLTs[0][0], cornerPointLTs[0][1]);
+				ctx.lineTo(cornerPointLTs[1][0], cornerPointLTs[1][1]);
+				ctx.lineTo(cornerPointLTs[2][0], cornerPointLTs[2][1]);
+				ctx.lineTo(cornerPointLTs[3][0], cornerPointLTs[3][1]);
+				ctx.closePath();
+				ctx.stroke();
+			};
+
+			var cornerMovers = mainBox.find("> .kPainterPerspect > .kPainterPerspectCorner");
+			cornerMovers.css('left', '0');
+			cornerMovers.css('top', '0');
+			cornerMovers.css('right', '0');
+			cornerMovers.css('bottom', '0');
+			var moveTouchId = null, x0, y0, activedCorner;
+			cornerMovers.on((isSupportTouch?'touchstart touchcancel touchend':'mousedown'), function(jqEvent){
+				activedCorner = this;
+				jqEvent.preventDefault();// avoid select
+				var touchs = jqEvent.originalEvent.targetTouches;
+				if(!touchs){
+					touchs = [{
+						pageX: jqEvent.originalEvent.clientX,
+						pageY: jqEvent.originalEvent.clientY
+					}];
+				}
+				if(1 == touchs.length){
+					if('perspect' == gestureStatus){
+						gestureStatus = 'perspectCornerMoving';
+					}
+					moveTouchId = touchs[0].identifier;
+					x0 = touchs[0].pageX;
+					y0 = touchs[0].pageY;
+				}else if('perspectCornerMoving' == gestureStatus){
+					gestureStatus = 'perspect';
+				}
+			});
+			mainBox.on((isSupportTouch?'touchmove':'mousemove'), function(jqEvent){
+				jqEvent.preventDefault();// avoid select
+				var touchs = jqEvent.originalEvent.targetTouches;
+				if(!touchs){
+					touchs = [{
+						pageX: jqEvent.originalEvent.clientX,
+						pageY: jqEvent.originalEvent.clientY
+					}];
+				}
+				if(1 == touchs.length){
+					if('perspectCornerMoving' != gestureStatus || moveTouchId != touchs[0].identifier){
+						// or touch is not same
+						return;
+					}
+					var _x0 = x0, _y0 = y0;
+					x0 = touchs[0].pageX;
+					y0 = touchs[0].pageY;
+					var dx0 = x0-_x0, dy0 = y0-_y0;
+					var left = parseFloat(activedCorner.style.left) + dx0;
+					var top = parseFloat(activedCorner.style.top) + dy0;
+					activedCorner.style.left = left + 'px';
+					activedCorner.style.right = -left + 'px';
+					activedCorner.style.top = top + 'px';
+					activedCorner.style.bottom = -top + 'px';
+					drawBorderLine();
+				}
+			});
+			if(!isSupportTouch){
+				mainBox.on('mouseup', function(jqEvent){
+					if('perspectCornerMoving' == gestureStatus){
+						gestureStatus = 'perspect';
+					}
+				});
+				mainBox.on('mouseleave', function(jqEvent){
+					var oEvent = jqEvent.originalEvent;
+					if(!oEvent.buttons){return;}// mouse not pressing
+					if('perspectCornerMoving' == gestureStatus){
+						gestureStatus = 'perspect';
+					}
+				});
+			}
+			kPainter.freeTransform = function(callback){
+				if(gestureStatus != 'perspect'){ return; }
+				onStartLoadingNoBreak();
+				var cornerPoints = [];
+				var cvsZoom = canvas.kPainterZoom,
+					tsf = $(canvas).getTransform();
+				var cvsVW = canvas.width * cvsZoom,
+					cvsVH = canvas.height * cvsZoom;
+				if(0 != tsf.a*tsf.d && 0 == tsf.b*tsf.c){}else{
+					var temp = cvsVW; cvsVW = cvsVH; cvsVH = temp;
+				}
+				for(var i = 0; i < cornerMovers.length; ++i){
+					var mover = cornerMovers[i];
+					cornerPoints.push([parseFloat(mover.style.left) / cvsVW, parseFloat(mover.style.top) / cvsVH]);
+				}
+				var cps = cornerPoints;
+				if(Math.abs(cps[0][0] - 0.5) < 0.005 &&
+					Math.abs(cps[0][1] + 0.5) < 0.005 &&
+					Math.abs(cps[1][0] - 0.5) < 0.005 &&
+					Math.abs(cps[1][1] - 0.5) < 0.005 &&
+					Math.abs(cps[2][0] + 0.5) < 0.005 &&
+					Math.abs(cps[2][1] - 0.5) < 0.005 &&
+					Math.abs(cps[3][0] + 0.5) < 0.005 &&
+					Math.abs(cps[3][1] + 0.5) < 0.005){
+					onFinishLoadingNoBreak();
+					if(typeof callback == "function"){callback();}
+					return;
+				}
+				setTimeout(function(){
+					//editor.updateCvs(true, true);
+
+					var src = new cv.matFromArray(getThumbImgData(2048), cv.CV_8UC4);
+					cv.cvtColor(src, src, cv.ColorConversionCodes.COLOR_RGBA2RGB.value, 0);
+
+					var fromCornerMat = new cv.Mat.zeros(4, 1, cv.CV_32FC2); //cv.Point2fVector();
+					var fcd = fromCornerMat.data32f();
+					for(let i = 0; i < cornerPoints.length; ++i){
+						let p = cornerPoints[i];
+						fcd[2 * i] = Math.round((p[0] + 0.5) * src.cols);
+						fcd[2 * i + 1] = Math.round((p[1] + 0.5) * src.rows);
+					}
+
+					var x0 = fcd[0] - fcd[6],
+						y0 = fcd[1] - fcd[7],
+						x1 = fcd[0] - fcd[2],
+						y1 = fcd[3] - fcd[1],
+						x2 = fcd[2] - fcd[4],
+						y2 = fcd[5] - fcd[3],
+						x3 = fcd[6] - fcd[4],
+						y3 = fcd[5] - fcd[7];
+					var psptWidth = Math.round(Math.max(Math.sqrt(x0 * x0 + y0 * y0), Math.sqrt(x2 * x2 + y2 * y2))), 
+						psptHeight = Math.round(Math.max(Math.sqrt(x1 * x1 + y1 * y1), Math.sqrt(x3 * x3 + y3 * y3)));
+					var toCornerMat = new cv.Mat.zeros(4, 1, cv.CV_32FC2);//cv.Point2fVector();
+					var toCornerData32f = toCornerMat.data32f();
+					toCornerData32f[0] = psptWidth;
+					toCornerData32f[2] = psptWidth;
+					toCornerData32f[3] = psptHeight;
+					toCornerData32f[5] = psptHeight;
+					var tsfMat = cv.getPerspectiveTransform(fromCornerMat, toCornerMat);
+					fromCornerMat.delete();
+					toCornerMat.delete();
+
+					var perspectTsfed = new cv.Mat.zeros(psptHeight, psptWidth, cv.CV_8UC3);
+					var color = new cv.Scalar(0, 255, 0);
+					cv.warpPerspective(src, perspectTsfed, tsfMat, [perspectTsfed.rows, perspectTsfed.cols], cv.InterpolationFlags.INTER_LINEAR.value, cv.BORDER_CONSTANT, color);
+					//putResultImgCvs(perspectTsfed);
+					src.delete();
+					tsfMat.delete();
+					color.delete();
+					var imgData = new ImageData(psptWidth, psptHeight);
+					var channels = perspectTsfed.channels();
+					var data = perspectTsfed.data();
+					for (let i = 0, j = 0; i < data.length; i += channels, j+=4) {
+						imgData.data[j] = data[i];
+						imgData.data[j + 1] = data[i+1%channels];
+						imgData.data[j + 2] = data[i+2%channels];
+						imgData.data[j + 3] = 255;
+					}
+					perspectTsfed.delete();
+
+					canvas.width = psptWidth;
+					canvas.height = psptHeight;
+					var ctx = canvas.getContext('2d');
+					//gesturer.setImgStyleFit();
+					ctx.putImageData(imgData, 0, 0);
+					gesturer.setImgStyleFit();
+
+					var imgEl = new Image();
+					
+					imgEl.onload = function(){
+						imgEl.onload = null;
+						//psptBox.hide();
+						editor.pushStack({
+							srcImg: imgEl
+						});
+						setCornerPos([[0.5,-0.5],[0.5,0.5],[-0.5,0.5],[-0.5,-0.5]]);
+						//if(kPainter.isAutoShowCropUI){ cropGesturer.showCropRect(); }
+						//gestureStatus = null;
+
+						onFinishLoadingNoBreak();
+
+						if(typeof callback == "function"){callback();} 
+					}
+
+					if(isSupportDrawImageWithObjectUrl){
+						cvsToBlob(canvas, function(blob){
+							objUrl = URL.createObjectURL(blob);
+							imgEl.src = objUrl;
+						}, "image/png");
+					}else{
+						imgEl.src = canvas.toDataURL();
+					}
+
+				}, 0);
+			};
+			kPainter.enterFreeTransformMode = function(callback){
+				if(!isEditing || !cvHasLoaded){ return; }
+				gestureStatus = 'perspect';
+				onStartLoadingNoBreak();
+				setTimeout(function(){
+					cropGesturer.hideCropRect();
+					editor.updateCvs(true);
+					setCornerPos([[0.5,-0.5],[0.5,0.5],[-0.5,0.5],[-0.5,-0.5]]);
+					psptBox.show();
+					onFinishLoadingNoBreak();
+					if(typeof callback == 'function'){callback();}
+				}, 0);
+			};
+			kPainter.exitFreeTransformMode = function(){
+				if(gestureStatus != 'perspect'){ return; }
+				psptBox.hide();
+				editor.updateCvs();
+				if(kPainter.isAutoShowCropUI){ cropGesturer.showCropRect(); }
+				gestureStatus = null;
+			};
+		})();
 	};
 };
