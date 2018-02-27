@@ -13,6 +13,7 @@ var KPainter = function(initSetting){
 	
 	var isMobileSafari = (/iPhone/i.test(navigator.platform) || /iPod/i.test(navigator.platform) || /iPad/i.test(navigator.userAgent)) && !!navigator.appVersion.match(/(?:Version\/)([\w\._]+)/); 
 	var isSupportDrawImageWithObjectUrl = false;//FF53 not support, FF56 support 
+	var absoluteCenterDistance = 100000;
 
 	(function(){
 		// can use a very small base64-img, convert to blob, to test if support canvas drawImage using objectUrl
@@ -362,7 +363,6 @@ var KPainter = function(initSetting){
 			}
 		};
 
-		kPainter.absoluteMD = 100000;
 		var setImgStyleNoRatateFit = function(){
 			var img = imgArr[curIndex];
 			var box = mainBox;
@@ -372,23 +372,23 @@ var KPainter = function(initSetting){
 			//img.style.transform = "";
 			img.style.width = (Math.round(img.naturalWidth * zoom) || 1) + "px"; 
 			img.style.height = (Math.round(img.naturalHeight * zoom) || 1) + "px"; 
-			img.style.left = img.style.right = img.style.top = img.style.bottom = -kPainter.absoluteMD+"px";
+			img.style.left = img.style.right = img.style.top = img.style.bottom = -absoluteCenterDistance+"px";
 
 			if(imgArr.length >= 2){
 				var pImg = imgArr[(imgArr.length + curIndex - 1) % imgArr.length];
 				zoom = Math.min(cbr.width/pImg.naturalWidth,cbr.height/pImg.naturalHeight);
 				pImg.style.width = (Math.round(pImg.naturalWidth * zoom) || 1) + "px"; 
 				pImg.style.height = (Math.round(pImg.naturalHeight * zoom) || 1) + "px"; 
-				pImg.style.right = kPainter.absoluteMD+"px";
-				pImg.style.left = pImg.style.top = pImg.style.bottom = -kPainter.absoluteMD+"px";
+				pImg.style.right = absoluteCenterDistance+"px";
+				pImg.style.left = pImg.style.top = pImg.style.bottom = -absoluteCenterDistance+"px";
 			}
 			if(imgArr.length >= 3){
 				var nImg = imgArr[(imgArr.length + curIndex + 1) % imgArr.length];
 				zoom = Math.min(cbr.width/nImg.naturalWidth,cbr.height/nImg.naturalHeight);
 				nImg.style.width = (Math.round(nImg.naturalWidth * zoom) || 1) + "px"; 
 				nImg.style.height = (Math.round(nImg.naturalHeight * zoom) || 1) + "px"; 
-				nImg.style.left = kPainter.absoluteMD+"px";
-				nImg.style.right = nImg.style.top = pImg.style.bottom = -kPainter.absoluteMD+"px";
+				nImg.style.left = absoluteCenterDistance+"px";
+				nImg.style.right = nImg.style.top = pImg.style.bottom = -absoluteCenterDistance+"px";
 			}
 		};
 
@@ -697,8 +697,8 @@ var KPainter = function(initSetting){
 				imgW = img[0].naturalWidth;
 				imgH = img[0].naturalHeight;
 			}
-			left = parseFloat(img[0].style.left) + kPainter.absoluteMD;
-			top = parseFloat(img[0].style.top) + kPainter.absoluteMD;
+			left = parseFloat(img[0].style.left) + absoluteCenterDistance;
+			top = parseFloat(img[0].style.top) + absoluteCenterDistance;
 			imgTsf = img.getTransform();
 			if(0 != imgTsf.a*imgTsf.d && 0 == imgTsf.b*imgTsf.c){
 			}else{
@@ -720,8 +720,8 @@ var KPainter = function(initSetting){
 
 		var updateImgPosZoom = function(){
 			//correctPosZoom();
-			img[0].style.left = left-kPainter.absoluteMD+'px', img[0].style.right = -left-kPainter.absoluteMD+'px';
-			img[0].style.top = top-kPainter.absoluteMD+'px', img[0].style.bottom = -top-kPainter.absoluteMD+'px';
+			img[0].style.left = left-absoluteCenterDistance+'px', img[0].style.right = -left-absoluteCenterDistance+'px';
+			img[0].style.top = top-absoluteCenterDistance+'px', img[0].style.bottom = -top-absoluteCenterDistance+'px';
 			img[0].kPainterZoom = zoom;
 			if(0 != imgTsf.a*imgTsf.d && 0 == imgTsf.b*imgTsf.c){
 				img[0].style.width = (Math.round(imgW * zoom) || 1) + "px"; 
@@ -883,8 +883,40 @@ var KPainter = function(initSetting){
 		/* step/process element like {crop:{left:,top:,width:,height:},transform:,srcImg:} */
 		var stack = [];
 
+		kPainter.stepImgsGCThreshold = 10;
+		var stepImgsInfoArr = [];
+		var stepProtectedArr = [];
+		kPainter.addProtectedStep = function(index){
+			index = parseInt(index);
+			if(index !== index){return;}//NaN
+			if(stepProtectedArr.indexOf(index) != -1){return;}//exist
+			stepProtectedArr.push(index);
+			stepProtectedArr.sort(function(x,y){return x-y;});
+		};
+		kPainter.removeProtectedStep = function(index){
+			index = parseInt(index);
+			if(index !== index){return;}//NaN
+			var pos = stepProtectedArr.indexOf(index);
+			if(pos == -1){return}//not exist
+			stepProtectedArr.splice(pos, 1);
+		};
+		kPainter.getProtectedSteps = function(){
+			return stepProtectedArr.concat();
+		};
+
 		var pushStack = editor.pushStack = function(step){
+
+			//clean useless stack
 			stack.length = curStep + 1;
+			//clean useless stepImgsInfo
+			for(var i = stepImgsInfoArr.length - 1; i > 0; --i){
+				if(stepImgsInfoArr[i].beginStep > curStep){
+					--stepImgsInfoArr.length;
+				}else{
+					break;
+				}
+			}
+
 			if(!step.srcImg){
 				var _process = stack[curStep], 
 					_crop = _process.crop,
@@ -951,6 +983,12 @@ var KPainter = function(initSetting){
 				};
 				stack.push(process);
 				++curStep;
+
+				//update stepImgsInfo
+				if(process.srcImg){
+					stepImgsInfoArr[stepImgsInfoArr.length - 1].endStep = curStep + 1;
+				}
+
 				updateCvs();
 			}else{
 				var process = {
@@ -963,21 +1001,55 @@ var KPainter = function(initSetting){
 					transform: new kUtil.Matrix(1,0,0,1,0,0),
 					srcImg: step.srcImg
 				};
+
+				// GC
+				for(var i = 0;stepImgsInfoArr.length >= kPainter.stepImgsGCThreshold;){
+					if(stepProtectedArr.filter(function(value){
+						return stepImgsInfoArr[i].beginStep <= value && value < stepImgsInfoArr[i].endStep;
+					}).length){
+						//has step protected
+						if(++i < stepImgsInfoArr.length){
+							continue;
+						}else{
+							break;
+						}
+					}else{
+						//can be GC
+						var beginStep = stepImgsInfoArr[i].beginStep,
+							endStep = stepImgsInfoArr[i].endStep;
+						for(var j = beginStep; j < endStep; ++j){
+							stack[j] = null;
+						}
+						stepImgsInfoArr.splice(i,1);
+					}
+				}
+
 				stack.push(process);
 				++curStep;
+
+				var stepImgsInfo = {
+					img: process.srcImg,
+					beginStep: curStep,
+					endStep: curStep + 1
+				};
+				stepImgsInfoArr.push(stepImgsInfo);
 			}
 		};
 
 		kPainter.undo = function(){
 			if(!isEditing){ return; }
 			if(curStep > 0){
-				fromToStep(curStep, curStep - 1);
+				var toStep = curStep - 1;
+				while(null == stack[toStep]){--toStep;}
+				fromToStep(curStep, toStep);
 			}
 		};
 		kPainter.redo = function(){
 			if(!isEditing){ return; }
 			if(curStep < stack.length - 1){
-				fromToStep(curStep, curStep + 1);
+				var toStep = curStep + 1;
+				while(null == stack[toStep]){++toStep;}
+				fromToStep(curStep, toStep);
 			}
 		};
 		kPainter.getStepCount = function(){
@@ -991,7 +1063,7 @@ var KPainter = function(initSetting){
 				return;
 			}
 			index = Math.round(index);
-			if(index < 0 || index >= stack.length){ return; }
+			if(index < 0 || index >= stack.length || null == stack[index]){ return; }
 			fromToStep(curStep, index);
 		}
 
@@ -1126,6 +1198,7 @@ var KPainter = function(initSetting){
 			isEditing = true;
 
 			stack.length = 0;
+			stepImgsInfoArr.length = 0;
 			var process = imgArr[curIndex].kPainterProcess || {
 				crop: {
 					left: 0,
@@ -1263,14 +1336,14 @@ var KPainter = function(initSetting){
 		}
 
 		kPainterCroper.css({
-			"border-left-width":kPainter.absoluteMD+"px",
-			"border-top-width":kPainter.absoluteMD+"px",
-			"border-right-width":kPainter.absoluteMD+"px",
-			"border-bottom-width":kPainter.absoluteMD+"px",
-			"left":-kPainter.absoluteMD+"px",
-			"top":-kPainter.absoluteMD+"px",
-			"right":-kPainter.absoluteMD+"px",
-			"bottom":-kPainter.absoluteMD+"px"});
+			"border-left-width":absoluteCenterDistance+"px",
+			"border-top-width":absoluteCenterDistance+"px",
+			"border-right-width":absoluteCenterDistance+"px",
+			"border-bottom-width":absoluteCenterDistance+"px",
+			"left":-absoluteCenterDistance+"px",
+			"top":-absoluteCenterDistance+"px",
+			"right":-absoluteCenterDistance+"px",
+			"bottom":-absoluteCenterDistance+"px"});
 		
 		var x0, y0, moveTouchId, orientX, orientY, bpbr, bcbr, 
 			cvs = mainBox.find('> .kPainterImgsDiv > .kPainterCanvas'),
@@ -1332,8 +1405,8 @@ var KPainter = function(initSetting){
 			getCvsInfo();
 			width = parseFloat(kPainterCroper[0].style.width);
 			height = parseFloat(kPainterCroper[0].style.height);
-			left = parseFloat(kPainterCroper[0].style.left)-width/2+kPainter.absoluteMD;
-			top = parseFloat(kPainterCroper[0].style.top)-height/2+kPainter.absoluteMD;
+			left = parseFloat(kPainterCroper[0].style.left)-width/2+absoluteCenterDistance;
+			top = parseFloat(kPainterCroper[0].style.top)-height/2+absoluteCenterDistance;
 			minLeft = Math.max(-bcbr.width/2, cvsLeft);
 			minTop = Math.max(-bcbr.height/2, cvsTop);
 			maxRight = Math.min(bcbr.width/2, cvsRight);
@@ -1342,8 +1415,8 @@ var KPainter = function(initSetting){
 		var getCvsInfo = function(){
 			var tsf = cvs.getTransform();
 			var zoom = cvs[0].kPainterZoom;
-			var cx = parseFloat(cvs[0].style.left)+kPainter.absoluteMD;
-			var cy = parseFloat(cvs[0].style.top)+kPainter.absoluteMD;
+			var cx = parseFloat(cvs[0].style.left)+absoluteCenterDistance;
+			var cy = parseFloat(cvs[0].style.top)+absoluteCenterDistance;
 			if(0 != tsf.a*tsf.d && 0 == tsf.b*tsf.c){
 				cvsW = parseFloat(cvs[0].style.width), cvsH = parseFloat(cvs[0].style.height);
 			}else{
@@ -1375,10 +1448,10 @@ var KPainter = function(initSetting){
 		
 
 		var setCropBox = function(){
-			kPainterCroper[0].style.left = (left+width/2-kPainter.absoluteMD)+'px';
-			kPainterCroper[0].style.right = (-left-width/2-kPainter.absoluteMD)+'px';
-			kPainterCroper[0].style.top = (top+height/2-kPainter.absoluteMD)+'px';
-			kPainterCroper[0].style.bottom = (-top-height/2-kPainter.absoluteMD)+'px';
+			kPainterCroper[0].style.left = (left+width/2-absoluteCenterDistance)+'px';
+			kPainterCroper[0].style.right = (-left-width/2-absoluteCenterDistance)+'px';
+			kPainterCroper[0].style.top = (top+height/2-absoluteCenterDistance)+'px';
+			kPainterCroper[0].style.bottom = (-top-height/2-absoluteCenterDistance)+'px';
 			kPainterCroper[0].style.width = width+'px';
 			kPainterCroper[0].style.height = height+'px';
 		};
