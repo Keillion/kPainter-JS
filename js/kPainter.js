@@ -1611,10 +1611,20 @@ var KPainter = function(initSetting){
 			window.CVModule.setStatus('Downloading...');
 			if(window.WebAssembly){
 				//webassembly
-				$.getScript("js/cv-wasm.js");
+				$.ajax({
+			         type: "GET",
+			         url: "js/cv-wasm.js",
+			         dataType: "script",
+			         cache: true
+			     });
 			}else{
 				//asm js
-				$.getScript("js/cv.js");
+				$.ajax({
+			         type: "GET",
+			         url: "js/cv.js",
+			         dataType: "script",
+			         cache: true
+			     });
 			}
 		};
 
