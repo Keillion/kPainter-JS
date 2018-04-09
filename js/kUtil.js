@@ -2,6 +2,23 @@ var kUtil = kUtil || {};
 //Array.prototype.getRemove = function(index){
 //	//this.slice(0,index).concat(this.slice(index+1,this.length));
 //};
+if(!Math.sign){
+	Math.sign = function(num){
+		if(num > 0){
+			return 1;
+		}else if(num == 0){
+			if(1 / num < 0){
+				return -0;
+			}else{
+				return 0;
+			}
+		}else if(num < 0){
+			return -1;
+		}else{
+			return NaN;
+		}
+	}
+}
 kUtil.Matrix = function(a,b,c,d,e,f){
 	this.a=a,
 	this.b=b,
@@ -26,11 +43,7 @@ kUtil.convertURLToBlob = function(url, callback) {
     http.open("GET", url, true);
     http.responseType = "blob";
     http.onloadend = function(e) {
-        if (this.status == 200 || this.status === 0) {
-            callback(this.response);
-        }else{
-        	callback(null);
-        }
+		callback(this.response);
     };
     http.send();
 };
@@ -45,25 +58,38 @@ kUtil.convertBase64ToBlob = function(base64Str, mimeType){
 };
 (function($){
 	$.fn.borderWidth = function(){
-		var cs = window.getComputedStyle(this[0]);
+		var cs = null;
+		if(window.getComputedStyle){
+			cs = getComputedStyle(this[0]);
+		}else{
+			cs = this[0].currentStyle;
+		}
 		var info = {};
-		info.left = parseFloat(cs.getPropertyValue("border-left-width"));
-		info.top = parseFloat(cs.getPropertyValue("border-top-width"));
-		info.right = parseFloat(cs.getPropertyValue("border-right-width"));
-		info.bottom = parseFloat(cs.getPropertyValue("border-bottom-width"));
+		info.left = parseFloat(cs.getPropertyValue ? cs.getPropertyValue("border-left-width") : cs.getAttribute("border-left-width")) || 0;
+		info.top = parseFloat(cs.getPropertyValue ? cs.getPropertyValue("border-top-width") : cs.getAttribute("border-top-width")) || 0;
+		info.right = parseFloat(cs.getPropertyValue ? cs.getPropertyValue("border-right-width") : cs.getAttribute("border-right-width")) || 0;
+		info.bottom = parseFloat(cs.getPropertyValue ? cs.getPropertyValue("border-bottom-width") : cs.getAttribute("border-bottom-width")) || 0;
 		return info;
 	};
 	$.fn.padding = function(){
-		var cs = window.getComputedStyle(this[0]);
+		var cs = null;
+		if(window.getComputedStyle){
+			cs = getComputedStyle(this[0]);
+		}else{
+			cs = this[0].currentStyle;
+		}
 		var info = {};
-		info.left = parseFloat(cs.getPropertyValue("padding-left"));
-		info.top = parseFloat(cs.getPropertyValue("padding-top"));
-		info.right = parseFloat(cs.getPropertyValue("padding-right"));
-		info.bottom = parseFloat(cs.getPropertyValue("padding-bottom"));
+		info.left = parseFloat(cs.getPropertyValue ? cs.getPropertyValue("padding-left") : cs.getAttribute("padding-left")) || 0;
+		info.top = parseFloat(cs.getPropertyValue ? cs.getPropertyValue("padding-top") : cs.getAttribute("padding-top")) || 0;
+		info.right = parseFloat(cs.getPropertyValue ? cs.getPropertyValue("padding-right") : cs.getAttribute("padding-right")) || 0;
+		info.bottom = parseFloat(cs.getPropertyValue ? cs.getPropertyValue("padding-bottom") : cs.getAttribute("padding-bottom")) || 0;
 		return info;
 	};
 	$.fn.borderBoxRect = function(){
-		var cs = window.getComputedStyle(this[0]);
+		var cs = null;
+		if(window.getComputedStyle){
+			cs = getComputedStyle(this[0]);
+		}
 		var offset = this.offset();
 		var info = {};
 		/*info.zoom = 1;
@@ -79,8 +105,8 @@ kUtil.convertBase64ToBlob = function(base64Str, mimeType){
 		}*/
 		info.pageX0 = offset.left;
 		info.pageY0 = offset.top;
-		info.width = parseFloat(cs.width);//*info.zoom;
-		info.height = parseFloat(cs.height);//*info.zoom;
+		info.width = cs?parseFloat(cs.width):this.outerWidth();//*info.zoom;
+		info.height = cs?parseFloat(cs.height):this.outerHeight();//*info.zoom;
 		info.pageX1 = info.pageX0 + info.width;
 		info.pageY1 = info.pageY0 + info.height;
 		//tudo: client\screen
@@ -93,8 +119,8 @@ kUtil.convertBase64ToBlob = function(base64Str, mimeType){
 		//info.zoom = borderBoxRect.zoom;
 		info.pageX0 = borderBoxRect.pageX0 + borderWidth.left;//*info.zoom;
 		info.pageY0 = borderBoxRect.pageY0 + borderWidth.top;//*info.zoom;
-		info.width = borderBoxRect.width - (borderWidth.left + borderWidth.right);//*info.zoom;
-		info.height = borderBoxRect.height - (borderWidth.top + borderWidth.bottom);//*info.zoom;
+		info.width = window.getComputedStyle?borderBoxRect.width - (borderWidth.left + borderWidth.right):this.innerWidth();//*info.zoom;
+		info.height = window.getComputedStyle?borderBoxRect.height - (borderWidth.top + borderWidth.bottom):this.innerHeight();//*info.zoom;
 		info.pageX1 = borderBoxRect.pageX1 - borderWidth.right;//*info.zoom;
 		info.pageY1 = borderBoxRect.pageY1 - borderWidth.bottom;//*info.zoom;
 		//tudo: client\screen
@@ -107,8 +133,8 @@ kUtil.convertBase64ToBlob = function(base64Str, mimeType){
 		//info.zoom = paddingBoxRect.zoom;
 		info.pageX0 = paddingBoxRect.pageX0 + padding.left;//*info.zoom;
 		info.pageY0 = paddingBoxRect.pageY0 + padding.top;//*info.zoom;
-		info.width = paddingBoxRect.width - (padding.left + padding.right);//*info.zoom;
-		info.height = paddingBoxRect.height - (padding.top + padding.bottom);//*info.zoom;
+		info.width = window.getComputedStyle?paddingBoxRect.width - (padding.left + padding.right):this.width();//*info.zoom;
+		info.height = window.getComputedStyle?paddingBoxRect.height - (padding.top + padding.bottom):this.height();//*info.zoom;
 		info.pageX1 = paddingBoxRect.pageX1 - padding.right;//*info.zoom;
 		info.pageY1 = paddingBoxRect.pageY1 - padding.bottom;//*info.zoom;
 		//tudo: client\screen
