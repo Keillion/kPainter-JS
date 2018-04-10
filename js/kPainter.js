@@ -102,7 +102,8 @@ var KPainter = function(initSetting){
             '</div>',
         '</div>'
     ].join(''))[0];
-    var mainBox = $(containerDiv).children(); 
+    var mainBox = $(containerDiv).children();
+    var mainCvs = mainBox.find('> .kPainterImgsDiv > .kPainterCanvas')[0];
 
     kPainter.getHtmlElement = function(){
         return containerDiv;
@@ -350,17 +351,24 @@ var KPainter = function(initSetting){
             img.kPainterOriBlob = img.kPainterBlob;
             var objUrl = URL.createObjectURL(img.kPainterBlob);
             img.onload = img.onerror = function(){
-                img.onload = img.onerror = null;
-                img.kPainterOriWidth = img.naturalWidth;
-                img.kPainterOriHeight = img.naturalHeight;
+				img.onload = img.onerror = null;
+				{
+					// walk around for ios safari bug
+					kPainter._noAnyUseButForIosSafariBug0 = img.naturalWidth;
+					kPainter._noAnyUseButForIosSafariBug1 = img.naturalHeight;
+				}
+				img.kPainterWidth = img.naturalWidth;
+				img.kPainterHeight = img.naturalHeight;
+                img.kPainterOriWidth = img.kPainterWidth;
+				img.kPainterOriHeight = img.kPainterHeight;
                 if(kPainter.isShowNewImgWhenAdd || -1 == curIndex){
                     showImg(imgArr.length - 1);
                 }
                 if(callback){ callback(); }
             };
             img.src = objUrl;
-            mainBox.children('.kPainterImgsDiv').append(img);
             $(img).hide();
+            mainBox.children('.kPainterImgsDiv').append(img);
             imgArr.push(img);
         };
 
@@ -369,25 +377,25 @@ var KPainter = function(initSetting){
             var box = mainBox;
             var pbr = box.paddingBoxRect();
             var cbr = box.contentBoxRect();
-            var zoom = img.kPainterZoom = Math.min(cbr.width/img.naturalWidth,cbr.height/img.naturalHeight);
+            var zoom = img.kPainterZoom = Math.min(cbr.width/img.kPainterWidth,cbr.height/img.kPainterHeight);
             //img.style.transform = "";
-            img.style.width = (Math.round(img.naturalWidth * zoom) || 1) + "px"; 
-            img.style.height = (Math.round(img.naturalHeight * zoom) || 1) + "px"; 
+            img.style.width = (Math.round(img.kPainterWidth * zoom) || 1) + "px"; 
+            img.style.height = (Math.round(img.kPainterHeight * zoom) || 1) + "px"; 
             img.style.left = img.style.right = img.style.top = img.style.bottom = -absoluteCenterDistance+"px";
 
             if(imgArr.length >= 2){
                 var pImg = imgArr[(imgArr.length + curIndex - 1) % imgArr.length];
-                zoom = Math.min(cbr.width/pImg.naturalWidth,cbr.height/pImg.naturalHeight);
-                pImg.style.width = (Math.round(pImg.naturalWidth * zoom) || 1) + "px"; 
-                pImg.style.height = (Math.round(pImg.naturalHeight * zoom) || 1) + "px"; 
+                zoom = Math.min(cbr.width/pImg.kPainterWidth,cbr.height/pImg.kPainterHeight);
+                pImg.style.width = (Math.round(pImg.kPainterWidth * zoom) || 1) + "px"; 
+                pImg.style.height = (Math.round(pImg.kPainterHeight * zoom) || 1) + "px"; 
                 pImg.style.right = absoluteCenterDistance+"px";
                 pImg.style.left = pImg.style.top = pImg.style.bottom = -absoluteCenterDistance+"px";
             }
             if(imgArr.length >= 3){
                 var nImg = imgArr[(imgArr.length + curIndex + 1) % imgArr.length];
-                zoom = Math.min(cbr.width/nImg.naturalWidth,cbr.height/nImg.naturalHeight);
-                nImg.style.width = (Math.round(nImg.naturalWidth * zoom) || 1) + "px"; 
-                nImg.style.height = (Math.round(nImg.naturalHeight * zoom) || 1) + "px"; 
+                zoom = Math.min(cbr.width/nImg.kPainterWidth,cbr.height/nImg.kPainterHeight);
+                nImg.style.width = (Math.round(nImg.kPainterWidth * zoom) || 1) + "px"; 
+                nImg.style.height = (Math.round(nImg.kPainterHeight * zoom) || 1) + "px"; 
                 nImg.style.left = absoluteCenterDistance+"px";
                 nImg.style.right = nImg.style.top = pImg.style.bottom = -absoluteCenterDistance+"px";
             }
@@ -681,23 +689,23 @@ var KPainter = function(initSetting){
         var getImgInfo = function(isIgnoreCrop){
             var box = mainBox;
             if(isEditing){
-                gesImg = box.find('> .kPainterImgsDiv > .kPainterCanvas');
-                imgW = gesImg[0].width;
-                imgH = gesImg[0].height;
+                gesImg = mainCvs;
+                imgW = gesImg.width;
+                imgH = gesImg.height;
             }else{
-                gesImg = $(imgArr[curIndex]);
-                imgW = gesImg[0].naturalWidth;
-                imgH = gesImg[0].naturalHeight;
+                gesImg = imgArr[curIndex];
+                imgW = gesImg.kPainterWidth;
+                imgH = gesImg.kPainterHeight;
             }
-            left = parseFloat(gesImg[0].style.left) + absoluteCenterDistance;
-            top = parseFloat(gesImg[0].style.top) + absoluteCenterDistance;
-            imgTsf = gesImg.getTransform();
+            left = parseFloat(gesImg.style.left) + absoluteCenterDistance;
+            top = parseFloat(gesImg.style.top) + absoluteCenterDistance;
+            imgTsf = $(gesImg).getTransform();
             if(0 != imgTsf.a*imgTsf.d && 0 == imgTsf.b*imgTsf.c){
             }else{
                 var temp = imgW;
                 imgW = imgH, imgH = temp;
             }
-            zoom = gesImg[0].kPainterZoom || 1;
+            zoom = gesImg.kPainterZoom || 1;
             bpbr = box.paddingBoxRect();
             bcbr = box.contentBoxRect();
             minZoom = Math.min(bcbr.width / imgW, bcbr.height / imgH);
@@ -713,15 +721,15 @@ var KPainter = function(initSetting){
         kPainter.onUpdateImgPosZoom = null;
         var updateImgPosZoom = function(){
             //correctPosZoom();
-            gesImg[0].style.left = left-absoluteCenterDistance+'px', gesImg[0].style.right = -left-absoluteCenterDistance+'px';
-            gesImg[0].style.top = top-absoluteCenterDistance+'px', gesImg[0].style.bottom = -top-absoluteCenterDistance+'px';
-            gesImg[0].kPainterZoom = zoom;
+            gesImg.style.left = left-absoluteCenterDistance+'px', gesImg.style.right = -left-absoluteCenterDistance+'px';
+            gesImg.style.top = top-absoluteCenterDistance+'px', gesImg.style.bottom = -top-absoluteCenterDistance+'px';
+            gesImg.kPainterZoom = zoom;
             if(0 != imgTsf.a*imgTsf.d && 0 == imgTsf.b*imgTsf.c){
-                gesImg[0].style.width = (Math.round(imgW * zoom) || 1) + "px"; 
-                gesImg[0].style.height = (Math.round(imgH * zoom) || 1) + "px"; 
+                gesImg.style.width = (Math.round(imgW * zoom) || 1) + "px"; 
+                gesImg.style.height = (Math.round(imgH * zoom) || 1) + "px"; 
             }else{
-                gesImg[0].style.height = (Math.round(imgW * zoom) || 1) + "px"; 
-                gesImg[0].style.width = (Math.round(imgH * zoom) || 1) + "px"; 
+                gesImg.style.height = (Math.round(imgW * zoom) || 1) + "px"; 
+                gesImg.style.width = (Math.round(imgH * zoom) || 1) + "px"; 
             }
             if(!isEditing && 1!=imgArr.length){
                 var boundaryPaddingD = Math.max(0, ((Math.round(imgW*zoom) || 1) - bpbr.width) / 2);
@@ -872,7 +880,7 @@ var KPainter = function(initSetting){
                 cx = (x0+x1)/2;
                 cy = (y0+y1)/2;
                 length = Math.sqrt(Math.pow(x0-x1, 2) + Math.pow(y0-y1, 2));
-                //var ibbr = gesImg.borderBoxRect();
+                //var ibbr = $(gesImg).borderBoxRect();
                 var rate = length/_length;
                 zoom *= rate;
                 if(zoom>maxZoom){
@@ -988,7 +996,7 @@ var KPainter = function(initSetting){
                 }
                 // set proper accuracy
                 var img = imgArr[curIndex];
-                var accuracy = Math.pow(10, Math.ceil(Math.max(img.naturalWidth, img.naturalHeight)).toString().length+2);
+                var accuracy = Math.pow(10, Math.ceil(Math.max(img.kPainterWidth, img.kPainterHeight)).toString().length+2);
                 crop.left = Math.round(crop.left*accuracy)/accuracy;
                 crop.top = Math.round(crop.top*accuracy)/accuracy;
                 crop.width = Math.round(crop.width*accuracy)/accuracy;
@@ -1099,8 +1107,6 @@ var KPainter = function(initSetting){
             });
         }
 
-        var canvas = mainBox.find("> .kPainterImgsDiv > .kPainterCanvas")[0];
-
         var fromToStepAsync = function(fromStep, toStep, callback){
             curStep = toStep;
             var _crop = stack[fromStep].crop;
@@ -1111,8 +1117,8 @@ var KPainter = function(initSetting){
                 _crop.bottom == crop.bottom &&
                 stack[fromStep].srcBlob == stack[curStep].srcBlob
             ){
-                // case only do transform, don't redraw canvas
-                $(canvas).setTransform(stack[curStep].transform);
+                // case only do transform, don't redraw mainCvs
+                $(mainCvs).setTransform(stack[curStep].transform);
                 gesturer.setImgStyleFit();
                 if(callback){callback();}
             }else{
@@ -1121,7 +1127,7 @@ var KPainter = function(initSetting){
         };
 
         var showCvsAsync = function(callback){
-            $(canvas).siblings().hide();
+            $(mainCvs).siblings().hide();
             updateCvsAsync(false, false, function(){
                 if(kPainter.isAutoShowCropUI){ cropGesturer.showCropRect(); }
                 if(callback){callback();}
@@ -1135,7 +1141,7 @@ var KPainter = function(initSetting){
             maxEditingCvsWH = Math.min(w,h)*dpr;
         })();
         var updateCvsAsync = editor.updateCvsAsync = function(bTrueTransform, bNotShow, callback){
-            $(canvas).hide();
+            $(mainCvs).hide();
             var process = stack[curStep];
             var blob = process.srcBlob || imgArr[curIndex].kPainterOriBlob;
 
@@ -1166,42 +1172,42 @@ var KPainter = function(initSetting){
             var imgOH = img.naturalHeight || img.height;
             var crop = process.crop;
             var tsf = process.transform;
-            var context2d = canvas.getContext("2d");
+            var context2d = mainCvs.getContext("2d");
 
-            var sWidth = Math.round(imgOW * crop.width) || 1,
-                sHeight = Math.round(imgOH * crop.height) || 1;
+            var sWidth = mainCvs.fullQualityWidth = Math.round(imgOW * crop.width) || 1,
+                sHeight = mainCvs.fullQualityHeight = Math.round(imgOH * crop.height) || 1;
             var isSwitchedWH = false;
-            canvas.hasCompressed = false;
+            mainCvs.hasCompressed = false;
             if(bTrueTransform){
                 var cvsW, cvsH;
                 if(0 != tsf.a*tsf.d && 0 == tsf.b*tsf.c){
                     cvsW = sWidth;
                     cvsH = sHeight;
                 }else{
-                    cvsW = sHeight;
-                    cvsH = sWidth;
+                    cvsW = mainCvs.fullQualityWidth = sHeight;
+                    cvsH = mainCvs.fullQualityHeight = sWidth;
                     isSwitchedWH = true;
                 }
-                canvas.width = cvsW;
-                canvas.height = cvsH;
+                mainCvs.width = cvsW;
+                mainCvs.height = cvsH;
                 var drawE = cvsW/2 * (1 - tsf.a - tsf.c),
                     drawF = cvsH/2 * (1 - tsf.b - tsf.d);
                 context2d.setTransform(tsf.a, tsf.b, tsf.c, tsf.d, drawE, drawF);
             }
             // else if(isMobileSafari && (sWidth > 1024 || sHeight > 1024)){
             //     var rate = 1024 / Math.max(sWidth, sHeight);
-            //     canvas.width = Math.round(sWidth * rate) || 1;
-            //     canvas.height = Math.round(sHeight * rate) || 1;
-            //     canvas.hasCompressed = true;
+            //     mainCvs.width = Math.round(sWidth * rate) || 1;
+            //     mainCvs.height = Math.round(sHeight * rate) || 1;
+            //     mainCvs.hasCompressed = true;
             // }
             else if(sWidth > maxEditingCvsWH || sHeight > maxEditingCvsWH){
                 var rate = maxEditingCvsWH / Math.max(sWidth, sHeight);
-                canvas.width = Math.round(sWidth * rate) || 1;
-                canvas.height = Math.round(sHeight * rate) || 1;
-                canvas.hasCompressed = true;
+                mainCvs.width = Math.round(sWidth * rate) || 1;
+                mainCvs.height = Math.round(sHeight * rate) || 1;
+                mainCvs.hasCompressed = true;
             }else{
-                canvas.width = sWidth;
-                canvas.height = sHeight;
+                mainCvs.width = sWidth;
+                mainCvs.height = sHeight;
             }
             var sx = Math.round(imgOW*crop.left), 
                 sy = Math.round(imgOH*crop.top);
@@ -1209,11 +1215,11 @@ var KPainter = function(initSetting){
             if(sy == imgOH){ --sy; }
             var dWidth, dHeight;
             if(!isSwitchedWH){
-                dWidth = canvas.width;
-                dHeight = canvas.height;
+                dWidth = mainCvs.width;
+                dHeight = mainCvs.height;
             }else{
-                dWidth = canvas.height;
-                dHeight = canvas.width;
+                dWidth = mainCvs.height;
+                dHeight = mainCvs.width;
             }
             if(sWidth/dWidth <= 2){
                 context2d.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, dWidth, dHeight);
@@ -1232,18 +1238,18 @@ var KPainter = function(initSetting){
                 context2d.drawImage(tempCvs, 0, 0, _sWidth, _sHeight, 0, 0, dWidth, dHeight);
             }
             if(bTrueTransform){
-                $(canvas).setTransform(new kUtil.Matrix(1,0,0,1,0,0));
+                $(mainCvs).setTransform(new kUtil.Matrix(1,0,0,1,0,0));
             }else{
-                $(canvas).setTransform(tsf);
+                $(mainCvs).setTransform(tsf);
             }
             if(!bNotShow){
                 gesturer.setImgStyleFit();
-                $(canvas).show();
+                $(mainCvs).show();
             }
         };
 
         var hideCvs = function(){
-            mainBox.find("> .kPainterImgsDiv > .kPainterCanvas").hide();
+            $(mainCvs).hide();
             cropGesturer.hideCropRect();
         };
 
@@ -1288,12 +1294,10 @@ var KPainter = function(initSetting){
         var saveEditedCvsAsync = function(callback, isCover){
             var crop = stack[curStep].crop,
                 tsf = stack[curStep].transform,
-                srcBlob = stack[curStep].srcBlob,
                 _crop = stack[0].crop,
-                _tsf = stack[0].transform,
-                _srcBlob = stack[0].srcBlob;
+                _tsf = stack[0].transform;
             var curImg = imgArr[curIndex];
-            if(_srcBlob != srcBlob || _tsf.a != tsf.a || _tsf.b != tsf.b || _tsf.c != tsf.c || _tsf.d != tsf.d ||
+            if(!stack[curStep].srcBlob || _tsf.a != tsf.a || _tsf.b != tsf.b || _tsf.c != tsf.c || _tsf.d != tsf.d ||
                 Math.round(curImg.kPainterOriWidth * crop.left) != Math.round(curImg.kPainterOriWidth * _crop.left) ||
                 Math.round(curImg.kPainterOriHeight * crop.top) != Math.round(curImg.kPainterOriHeight * _crop.top) ||
                 Math.round(curImg.kPainterOriWidth * (crop.left + crop.width)) != Math.round(curImg.kPainterOriWidth * (_crop.left + _crop.width)) ||
@@ -1302,12 +1306,6 @@ var KPainter = function(initSetting){
                 URL.revokeObjectURL(curImg.src);
                 var img = new Image(); //imgArr[curIndex];
                 var saveEditedCvsInner = function(){
-                    img.kPainterOriBlob = curImg.kPainterOriBlob;
-                    img.kPainterOriWidth = curImg.kPainterOriWidth;
-                    img.kPainterOriHeight = curImg.kPainterOriHeight;
-                    img.kPainterProcess = stack[curStep];
-                    img.kPainterSaveFormat = curImg.kPainterSaveFormat;
-                    var objUrl;
                     img.onload = img.onerror = function(){
                         img.onload = img.onerror = null;
                         if(isCover){
@@ -1319,21 +1317,29 @@ var KPainter = function(initSetting){
                         mainBox.children('.kPainterImgsDiv').append(img);
                         if(callback){callback();}
                     };
-                    cvsToBlobAsync(canvas, function(blob){
-                        img.kPainterBlob = blob;
+                    cvsToBlobAsync(mainCvs, function(blob){
+						img.kPainterBlob = blob;
+						img.kPainterWidth = mainCvs.width;
+						img.kPainterHeight = mainCvs.height;
                         if(stack[curStep].srcBlob){
                             img.kPainterOriBlob = blob;
-                            img.kPainterOriWidth = canvas.width;
-                            img.kPainterOriHeight = canvas.height;
+                            img.kPainterOriWidth = mainCvs.width;
+							img.kPainterOriHeight = mainCvs.height;
                             img.kPainterSaveFormat = stack[curStep].saveFormat;
-                        }
-                        objUrl = URL.createObjectURL(blob);
+                        }else{
+							img.kPainterOriBlob = curImg.kPainterOriBlob;
+							img.kPainterOriWidth = curImg.kPainterOriWidth;
+							img.kPainterOriHeight = curImg.kPainterOriHeight;
+							img.kPainterProcess = stack[curStep];
+							img.kPainterSaveFormat = curImg.kPainterSaveFormat;
+						}
+                        var objUrl = URL.createObjectURL(blob);
                         img.src = objUrl;
                     }, stack[curStep].saveFormat || curImg.kPainterSaveFormat);
                 };
 
-                if(canvas.hasCompressed || tsf.a!=1 || tsf.b!=0 || tsf.c!=0 || tsf.d!=1 || tsf.e!=0 || tsf.f!=0){
-                    mainBox.find('> .kPainterImgsDiv > .kPainterCanvas').hide();
+                if(mainCvs.hasCompressed || tsf.a!=1 || tsf.b!=0 || tsf.c!=0 || tsf.d!=1 || tsf.e!=0 || tsf.f!=0){
+                    $(mainCvs).hide();
                     updateCvsAsync(true, true, saveEditedCvsInner);
                 }else{
                     saveEditedCvsInner();
@@ -1362,28 +1368,50 @@ var KPainter = function(initSetting){
         };
 
         kPainter.rotateRight = function(){
-            if(!isEditing){ return; }
-            var transformOri = $(canvas).getTransform();
+            if(!isEditing){ return false; }
+            var transformOri = $(mainCvs).getTransform();
             var transformNew = kUtil.Matrix.dot(new kUtil.Matrix(0,1,-1,0,0,0), transformOri);
-            $(canvas).setTransform(transformNew);
+            $(mainCvs).setTransform(transformNew);
             pushStack({transform: transformNew});
             gesturer.setImgStyleFit();
+            return true;
         };
         kPainter.rotateLeft = function(){
-            if(!isEditing){ return; }
-            var transformOri = $(canvas).getTransform();
+            if(!isEditing){ return false; }
+            var transformOri = $(mainCvs).getTransform();
             var transformNew = kUtil.Matrix.dot(new kUtil.Matrix(0,-1,1,0,0,0), transformOri);
-            $(canvas).setTransform(transformNew);
+            $(mainCvs).setTransform(transformNew);
             pushStack({transform: transformNew});
             gesturer.setImgStyleFit();
+            return true;
         };
         kPainter.mirror = function(){
-            if(!isEditing){ return; }
-            var transformOri = $(canvas).getTransform();
+            if(!isEditing){ return false; }
+            var transformOri = $(mainCvs).getTransform();
             var transformNew = kUtil.Matrix.dot(new kUtil.Matrix(-1,0,0,1,0,0), transformOri);
-            $(canvas).setTransform(transformNew);
+            $(mainCvs).setTransform(transformNew);
             pushStack({transform: transformNew});
             gesturer.setImgStyleFit();
+            return true;
+        };
+
+        kPainter.getEditWidth = function(){
+            if(!isEditing){ return NaN; }
+            var tsf = stack[curStep].transform;
+            if(0 != tsf.a*tsf.d && 0 == tsf.b*tsf.c){
+                return mainCvs.fullQualityWidth;
+            }else{
+                return mainCvs.fullQualityHeight;
+            }
+        };
+        kPainter.getEditHeight = function(){
+            if(!isEditing){ return NaN; }
+            var tsf = stack[curStep].transform;
+            if(0 != tsf.a*tsf.d && 0 == tsf.b*tsf.c){
+                return mainCvs.fullQualityHeight;
+            }else{
+                return mainCvs.fullQualityWidth;
+            }
         };
     };
 
@@ -1433,7 +1461,6 @@ var KPainter = function(initSetting){
         };
         
         var x0, y0, moveTouchId, orientX, orientY, bpbr, bcbr, 
-            mainCvs = mainBox.find('> .kPainterImgsDiv > .kPainterCanvas'),
             cvsLeft, cvsTop, cvsRight, cvsBottom, cvsW, cvsH,
             left, top, width, height,
             minLeft, minTop, maxRight, maxBottom;
@@ -1504,14 +1531,14 @@ var KPainter = function(initSetting){
             maxBottom = Math.min(bcbr.height/2, cvsBottom);
         };
         var getCvsInfo = function(){
-            var tsf = mainCvs.getTransform();
-            var zoom = mainCvs[0].kPainterZoom;
-            var cx = parseFloat(mainCvs[0].style.left)+absoluteCenterDistance;
-            var cy = parseFloat(mainCvs[0].style.top)+absoluteCenterDistance;
+            var tsf = $(mainCvs).getTransform();
+            var zoom = mainCvs.kPainterZoom;
+            var cx = parseFloat(mainCvs.style.left)+absoluteCenterDistance;
+            var cy = parseFloat(mainCvs.style.top)+absoluteCenterDistance;
             if(0 != tsf.a*tsf.d && 0 == tsf.b*tsf.c){
-                cvsW = parseFloat(mainCvs[0].style.width), cvsH = parseFloat(mainCvs[0].style.height);
+                cvsW = parseFloat(mainCvs.style.width), cvsH = parseFloat(mainCvs.style.height);
             }else{
-                cvsW = parseFloat(mainCvs[0].style.height), cvsH = parseFloat(mainCvs[0].style.width);
+                cvsW = parseFloat(mainCvs.style.height), cvsH = parseFloat(mainCvs.style.width);
             }
             var hzCvsW = cvsW/2, hzCvsH = cvsH/2;
             cvsLeft = cx - hzCvsW;
@@ -1664,7 +1691,7 @@ var KPainter = function(initSetting){
         };
 
         var getCropRectArea = kPainter.getCropRectArea = function(isAbsolute){
-            if(cvsW != parseFloat(mainCvs[0].style.width)){
+            if(cvsW != parseFloat(mainCvs.style.width)){
                 // update info only when zoom change
                 getInfo();
             }
@@ -1675,6 +1702,9 @@ var KPainter = function(initSetting){
             var h = height / cvsH;
             var r = l + w;
             var b = t + h;
+            if(isAbsolute){
+                //var w = imgArr[curIndex].kPainterWidth
+            }
             return [l,t,r,b];
         }
 
@@ -1704,7 +1734,7 @@ var KPainter = function(initSetting){
                 r = ltrb[2],
                 b = ltrb[3];
             }
-            if((l+0.5)*mainCvs[0].width < 0.5 && (0.5-r)*mainCvs[0].width < 0.5 && (t+0.5)*mainCvs[0].height < 0.5 && (0.5-b)*mainCvs[0].height < 0.5){
+            if((l+0.5)*mainCvs.width < 0.5 && (0.5-r)*mainCvs.width < 0.5 && (t+0.5)*mainCvs.height < 0.5 && (0.5-b)*mainCvs.height < 0.5){
                 doCallbackNoBreak(callback,[l,t,r,b]);
             }else{
                 editor.pushStack({
@@ -1741,11 +1771,9 @@ var KPainter = function(initSetting){
                 cornerMinRad: Math.PI / 3
             };
 
-            var canvas = mainBox.find("> .kPainterImgsDiv > .kPainterCanvas")[0];
-
             var getThumbImgData = function(maxwh) {
-                var width = canvas.width,
-                    height = canvas.height,
+                var width = mainCvs.width,
+                    height = mainCvs.height,
                     resizeRt = 1;
                 if(width > height){
                     if(width > maxwh){
@@ -1760,7 +1788,7 @@ var KPainter = function(initSetting){
                         width = Math.round(width * resizeRt) || 1;
                     }
                 }
-                var tsf = $(canvas).getTransform();
+                var tsf = $(mainCvs).getTransform();
                 var tsfW, tsfH;
                 if(0 != tsf.a*tsf.d && 0 == tsf.b*tsf.c){
                     tsfW = width, tsfH = height;
@@ -1774,7 +1802,7 @@ var KPainter = function(initSetting){
                 var drawE = tsfW/2 * (1 - tsf.a - tsf.c);
                 var drawF = tsfH/2 * (1 - tsf.b - tsf.d);
                 ctx.setTransform(tsf.a, tsf.b, tsf.c, tsf.d, drawE, drawF);
-                ctx.drawImage(canvas, 0, 0, width, height);
+                ctx.drawImage(mainCvs, 0, 0, width, height);
                 var imgData = ctx.getImageData(0,0,tsfW,tsfH);
                 return imgData;
             };
@@ -2034,10 +2062,10 @@ var KPainter = function(initSetting){
             var psptBorderCvs = mainBox.find("> .kPainterPerspect > .kPainterPerspectCvs")[0];
             var setCornerPos = kPainter.setFreeTransformCornerPos = function(cornerPoints){
                 if(gestureStatus != 'perspect'){ return; }
-                var cvsZoom = canvas.kPainterZoom,
-                    tsf = $(canvas).getTransform();
-                var cvsVW = canvas.width * cvsZoom,
-                    cvsVH = canvas.height * cvsZoom;
+                var cvsZoom = mainCvs.kPainterZoom,
+                    tsf = $(mainCvs).getTransform();
+                var cvsVW = mainCvs.width * cvsZoom,
+                    cvsVH = mainCvs.height * cvsZoom;
                 if(0 != tsf.a*tsf.d && 0 == tsf.b*tsf.c){}else{
                     var temp = cvsVW; cvsVW = cvsVH; cvsVH = temp;
                 }
@@ -2199,10 +2227,10 @@ var KPainter = function(initSetting){
                 var cv = KPainter._cv;
 
                 var cornerPoints = [];
-                var cvsZoom = canvas.kPainterZoom,
-                    tsf = $(canvas).getTransform();
-                var cvsVW = canvas.width * cvsZoom,
-                    cvsVH = canvas.height * cvsZoom;
+                var cvsZoom = mainCvs.kPainterZoom,
+                    tsf = $(mainCvs).getTransform();
+                var cvsVW = mainCvs.width * cvsZoom,
+                    cvsVH = mainCvs.height * cvsZoom;
                 if(0 != tsf.a*tsf.d && 0 == tsf.b*tsf.c){}else{
                     var temp = cvsVW; cvsVW = cvsVH; cvsVH = temp;
                 }
@@ -2274,19 +2302,19 @@ var KPainter = function(initSetting){
                     }
                     cv.delMat(perspectTsfed);
 
-                    canvas.width = psptWidth;
-                    canvas.height = psptHeight;
-                    var ctx = canvas.getContext('2d');
+                    mainCvs.width = psptWidth;
+                    mainCvs.height = psptHeight;
+                    var ctx = mainCvs.getContext('2d');
                     //gesturer.setImgStyleFit();
                     ctx.putImageData(imgData, 0, 0);
                     gesturer.setImgStyleFit();
 
-                    cvsToBlobAsync(canvas, function(blob){
+                    cvsToBlobAsync(mainCvs, function(blob){
                         editor.pushStack({
                             srcBlob: blob,
                             saveFormat: "image/jpeg"
                         });
-                        editor.updateCvsAsync(false,false,function(){
+                        editor.updateCvsAsync(true,false,function(){
                             setCornerPos([[0.5,-0.5],[0.5,0.5],[-0.5,0.5],[-0.5,-0.5]]);
                             //if(kPainter.isAutoShowCropUI){ cropGesturer.showCropRect(); }
                             //gestureStatus = null;

@@ -142,7 +142,7 @@ kUtil.convertBase64ToBlob = function(base64Str, mimeType){
 	};
 	$.fn.getTransform = function(){
 		var strTransform = this.css('transform');
-		if('none' == strTransform){
+		if('none' == strTransform || '' == strTransform){
 			//jq bug, transform might not get latest, I only resolve the situation when set matrix(...)
 			strTransform = this[0].style.transform;
 		}
