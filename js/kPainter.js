@@ -1107,6 +1107,7 @@ var KPainter = function(initSetting){
             });
         }
 
+        editor.needAlwaysTrueTransform = false;
         var fromToStepAsync = function(fromStep, toStep, callback){
             curStep = toStep;
             var _crop = stack[fromStep].crop;
@@ -1122,7 +1123,7 @@ var KPainter = function(initSetting){
                 gesturer.setImgStyleFit();
                 if(callback){callback();}
             }else{
-                updateCvsAsync(false, false, callback);
+                updateCvsAsync(editor.needAlwaysTrueTransform, false, callback);
             }
         };
 
@@ -1378,7 +1379,7 @@ var KPainter = function(initSetting){
 
         kPainter.rotateRight = function(){
             if(!isEditing){ return false; }
-            var transformOri = stack[curStep].transform;
+            var transformOri = $(mainCvs).getTransform();
             var transformNew = kUtil.Matrix.dot(new kUtil.Matrix(0,1,-1,0,0,0), transformOri);
             $(mainCvs).setTransform(transformNew);
             pushStack({transform: transformNew});
@@ -1388,7 +1389,7 @@ var KPainter = function(initSetting){
         };
         kPainter.rotateLeft = function(){
             if(!isEditing){ return false; }
-            var transformOri = stack[curStep].transform;
+            var transformOri = $(mainCvs).getTransform();
             var transformNew = kUtil.Matrix.dot(new kUtil.Matrix(0,-1,1,0,0,0), transformOri);
             $(mainCvs).setTransform(transformNew);
             pushStack({transform: transformNew});
@@ -1398,7 +1399,7 @@ var KPainter = function(initSetting){
         };
         kPainter.mirror = function(){
             if(!isEditing){ return false; }
-            var transformOri = stack[curStep].transform;
+            var transformOri = $(mainCvs).getTransform();
             var transformNew = kUtil.Matrix.dot(new kUtil.Matrix(-1,0,0,1,0,0), transformOri);
             $(mainCvs).setTransform(transformNew);
             pushStack({transform: transformNew});
@@ -1720,24 +1721,21 @@ var KPainter = function(initSetting){
             return rect;
         };
 
-        kPainter.cropAsync = function(callback, l, t, r, b){
+        kPainter.cropAsync = function(callback, ltrb){
             if(!isEditing){ 
                 doCallbackNoBreak(callback,[null]);
                 return; 
             }
             getInfo();
-            if(arguments.length >= 5){
-            }else{
-                var ltrb = getCropRectArea();
-                if(!ltrb){
-                    doCallbackNoBreak(callback,[null]);
-                    return;
-                }
-                l = ltrb[0],
+            ltrb = ltrb || getCropRectArea();
+            if(!ltrb){
+                doCallbackNoBreak(callback,[null]);
+                return;
+            }
+            var l = ltrb[0],
                 t = ltrb[1],
                 r = ltrb[2],
                 b = ltrb[3];
-            }
             if((l+0.5)*mainCvs.fullQualityWidth < 0.5 && (0.5-r)*mainCvs.fullQualityWidth <= 0.5 && (t+0.5)*mainCvs.fullQualityHeight < 0.5 && (0.5-b)*mainCvs.fullQualityHeight <= 0.5){
                 doCallbackNoBreak(callback,[l,t,r,b]);
             }else{
@@ -1749,7 +1747,7 @@ var KPainter = function(initSetting){
                         height: b-t
                     }
                 });
-				editor.updateCvsAsync(false, false, function(){
+				editor.updateCvsAsync(editor.needAlwaysTrueTransform, false, function(){
 					doCallbackNoBreak(callback,[l,t,r,b]);
 				});
             }
@@ -2066,9 +2064,13 @@ var KPainter = function(initSetting){
             var psptBorderCvs = mainBox.find("> .kPainterPerspect > .kPainterPerspectCvs")[0];
             var setCornerPos = kPainter.setFreeTransformCornerPos = function(cornerPoints){
                 if(gestureStatus != 'perspect'){ return; }
-                var cvsZoom = mainCvs.kPainterZoom;
+                var cvsZoom = mainCvs.kPainterZoom,
+                    tsf = $(mainCvs).getTransform();
                 var cvsVW = mainCvs.width * cvsZoom,
                     cvsVH = mainCvs.height * cvsZoom;
+                if(!(0 != tsf.a * tsf.d && 0 == tsf.b * tsf.c)){
+                    var temp = cvsVW; cvsVW = cvsVH; cvsVH = temp;
+                }
                 var rect = mainBox.borderBoxRect();
                 var mbwh = rect.width / 2,
                     mbhh = rect.height / 2;
@@ -2096,9 +2098,13 @@ var KPainter = function(initSetting){
                 psptBox.show();
             };
             var getCornerPos = kPainter.getFreeTransformCornerPos = function(){
-                var cvsZoom = mainCvs.kPainterZoom;
+                var cvsZoom = mainCvs.kPainterZoom,
+                    tsf = $(mainCvs).getTransform();
                 var cvsVW = mainCvs.width * cvsZoom,
                     cvsVH = mainCvs.height * cvsZoom;
+                if(!(0 != tsf.a * tsf.d && 0 == tsf.b * tsf.c)){
+                    var temp = cvsVW; cvsVW = cvsVH; cvsVH = temp;
+                }
                 var cornerPoints = [];
                 for(var i = 0; i < cornerMovers.length; ++i){
                     var mover = cornerMovers[i];
@@ -2342,6 +2348,7 @@ var KPainter = function(initSetting){
                         setCornerPos([[0.5,-0.5],[0.5,0.5],[-0.5,0.5],[-0.5,-0.5]]);
                         psptBox.show();
                         onFinishLoadingNoBreak();
+                        editor.needAlwaysTrueTransform = true;
                         doCallbackNoBreak(callback,[true]);
                     });
                 }, 0);
@@ -2355,6 +2362,7 @@ var KPainter = function(initSetting){
                 editor.updateCvsAsync(false, false, function(){
                     if(kPainter.isAutoShowCropUI){ cropGesturer.showCropRect(); }
                     gestureStatus = null;
+                    editor.needAlwaysTrueTransform = false;
                     doCallbackNoBreak(callback,[true]);
                 });
             };
