@@ -18,9 +18,9 @@ var KPainter = function(initSetting){
         if(cvs.toBlob){
             cvs.toBlob(callback, mimeType, quality);
         }else{
-			var b64str = cvs.toDataURL(mimeType, quality);
-			var blob = kUtil.convertBase64ToBlob(b64str.substring(b64str.indexOf(",")+1), mimeType);
-			callback(blob);
+            var b64str = cvs.toDataURL(mimeType, quality);
+            var blob = kUtil.convertBase64ToBlob(b64str.substring(b64str.indexOf(",")+1), mimeType);
+            callback(blob);
         }
     };
     var imgToCvs = function(img, tsf){
@@ -41,14 +41,14 @@ var KPainter = function(initSetting){
     var blobToCvsAsync = function(blob, tsf, callback){
         if(window.createImageBitmap){
             createImageBitmap(blob).then(function(img){
-                callback(imgToCvs(img));
+                callback(imgToCvs(img, tsf));
             });
         }else{
             var objUrl = URL.createObjectURL(blob);
             var img = new Image();
             img.onload = img.onerror = function(){
                 img.onload = img.onerror = null;
-                var tCvs = imgToCvs(img);
+                var tCvs = imgToCvs(img, tsf);
                 URL.revokeObjectURL(objUrl);
                 callback(tCvs);
             };
@@ -88,10 +88,10 @@ var KPainter = function(initSetting){
                 '</div',
                 '><div class="kPainterPerspect" style="display:none;">',
                     '<canvas class="kPainterPerspectCvs"></canvas',
-                    '><div class="kPainterPerspectCorner" data-index="0">rt</div',
-                    '><div class="kPainterPerspectCorner" data-index="1">rb</div',
-                    '><div class="kPainterPerspectCorner" data-index="2">lb</div',
-                    '><div class="kPainterPerspectCorner" data-index="3">lt</div>',
+                    '><div class="kPainterPerspectCorner" data-index="0">lt</div',
+                    '><div class="kPainterPerspectCorner" data-index="1">rt</div',
+                    '><div class="kPainterPerspectCorner" data-index="2">rb</div',
+                    '><div class="kPainterPerspectCorner" data-index="3">lb</div>',
                 '</div',
                 '><div class="kPainterGesturePanel"></div',
                 '><div class="kPainterVideoMdl" style="display:none;">',
@@ -121,17 +121,14 @@ var KPainter = function(initSetting){
     kPainter.isEditing = function(){
         return isEditing;
     };
-    kPainter.getImage = function(isClone, index){
-        if(arguments.length < 1){
-            isClone = true;
-        }
-        if(arguments.length < 2){
+    kPainter.getImage = function(isOri, index){
+        if(undefined == index){
             index = curIndex;
         }
         if(isNaN(index)){ return; }
         index = Math.round(index);
         if(index < 0 || index >= imgArr.length){ return; }
-        return isClone ? $(imgArr[index]).clone()[0] : imgArr[index];
+        return isOri ? imgArr[index] : $(imgArr[index]).clone()[0];
     };
 
     kPainter.onStartLoading = null;
@@ -176,8 +173,13 @@ var KPainter = function(initSetting){
                 doCallbackNoBreak(callback,[false]);
                 return;
             }
+            if(!imgData){
+                doCallbackNoBreak(callback,[false]);
+                return;
+            }
             if(imgData instanceof Blob){
             }else if(imgData instanceof HTMLCanvasElement){
+            }else if(typeof imgData == "string" || imgData instanceof String){
             }else if(imgData instanceof HTMLImageElement){
             }else{
                 doCallbackNoBreak(callback,[false]);
@@ -229,142 +231,162 @@ var KPainter = function(initSetting){
             }
             fileReader.readAsArrayBuffer(hBlob);
         };
-        var setSaveFormat = function(img, callback){
-            var type = img.kPainterBlob.type;
+        var getSaveFormat = function(blob, callback){
+            var type = blob.type;
             if(type.indexOf("webp")!=-1){
-                img.kPainterSaveFormat = "image/webp";
-                if(callback){callback();}
+                if(callback){callback("image/webp");}
             }else if(type.indexOf("gif")!=-1 || type.indexOf("svg")!=-1){
-                img.kPainterSaveFormat = "image/png";
-                if(callback){callback();}
+                if(callback){callback("image/png");}
             }else if(type.indexOf("png")!=-1){
-                isPNGTransparent(img.kPainterBlob, function(isTransparent){
-                    img.kPainterSaveFormat = isTransparent ? "image/png" : "image/jpeg" ;
-                    if(callback){callback();}
+                isPNGTransparent(blob, function(isTransparent){
+                    if(callback){callback(isTransparent ? "image/png" : "image/jpeg");}
                 });
             }else{ // like jpeg
-                img.kPainterSaveFormat = "image/jpeg";
-                if(callback){callback();}
+                if(callback){callback("image/jpeg");}
             }
         };
-
         var addImageTask = function(imgData, callback){
+            getBlobAndFormatFromAnyImgData(imgData, function(blob, format){
+                if(blob){
+                    addFinalImageAsync(blob, format, callback);
+                }else{
+                    callback(false);
+                }
+            });
+        };
+        var getBlobAndFormatFromAnyImgData = imgStorer.getBlobAndFormatFromAnyImgData = function(imgData, callback){
 
-            var afterGetBlob = function(img){
-                setSaveFormat(img, function(){
-                    getTransform(img.kPainterBlob, function(tsf){
-                        fixImgOrient(img, tsf, function(){
-                            addFinalImageAsync(img, callback);
+            var afterGetBlob = function(blob){
+                getSaveFormat(blob, function(format){
+                    getTransform(blob, function(tsf){
+                        fixImgOrient(blob, tsf, format, function(blob){
+                            callback(blob, format);
                         });
                     });
                 });
             };
 
             if(imgData instanceof Blob){
-                var blob = imgData;
-                var img = new Image();
-                img.kPainterBlob = blob;
-                afterGetBlob(img);
+                afterGetBlob(imgData);
             }else if(imgData instanceof HTMLCanvasElement){
                 cvsToBlobAsync(imgData, function(blob){
-                    var img = new Image();
-                    img.kPainterBlob = blob;
-                    afterGetBlob(img);
+                    afterGetBlob(blob);
                 });
-            }else{//imgData instanceof HTMLImageElement
-                var img = new Image();//imgData;
-                var src = imgData.src;
-                if("data:" == src.substring(0, 5)){
+            }else if(typeof imgData == "string" || imgData instanceof String){
+                if("data:" == url.substring(0, 5)){ // url is base64
                     var mimeType = "";
-                    if("image/" == src.substring(5, 11)){
-                        mimeType = src.substring(5, src.indexOf(";", 11));
+                    if("image/" == url.substring(5, 11)){
+                        mimeType = url.substring(5, url.indexOf(";", 11));
                     }
-                    img.kPainterBlob = kUtil.convertBase64ToBlob(src.substring(src.indexOf("base64,")+7), mimeType);
-                    afterGetBlob(img);
-                }else{ // src is link, such as 'https://....'
-                    kUtil.convertURLToBlob(src, function(blob){
+                    var blob = kUtil.convertBase64ToBlob(url.substring(url.indexOf("base64,")+7), mimeType);
+                    afterGetBlob(blob);
+                }else{ // url is link, such as 'https://....'
+                    kUtil.convertURLToBlob(url, function(blob){
                         if(blob){
-                            img.kPainterBlob = blob;
-                            afterGetBlob(img);
+                            afterGetBlob(blob);
                         }else{
-                            // url not available, maybe network problem
-                            // use imgData -> canvas -> blob instand 
-
-                            var tCvs = document.createElement('canvas');
-                            tCvs.width = imgData.naturalWidth;
-                            tCvs.height = imgData.naturalHeight;
-                            var ctx = tCvs.getContext('2d');
-                            ctx.drawImage(imgData, 0, 0);
-
-                            // use suffix guess image mime type
-                            var suffix = "";
-                            var questionPos = src.lastIndexOf("?");
-                            var dotPos = -1;
-                            if(-1 != questionPos){
-                                dotPos = src.lastIndexOf(".", questionPos);
-                                if(-1 != dotPos && questionPos - dotPos <= 5){ //max supported type suffix is 4
-                                    suffix = src.substring(dotPos + 1, questionPos);
-                                }
-                            }else{
-                                dotPos = src.lastIndexOf(".");
-                                if(-1 != dotPos){
-                                    if(src.length - dotPos <= 5){ //max supported type suffix is 4
-                                        suffix = src.substring(dotPos + 1);
-                                    }else{
-                                        suffix = src.substring(dotPos + 1, dotPos + 5);
-                                    }
-                                }
-                            }
-                            if(-1 != suffix.indexOf("webp")){
-                                img.kPainterSaveFormat = "image/webp";
-                            }else if(-1 != suffix.indexOf("png") || -1 != suffix.indexOf("gif") || -1 != suffix.indexOf("svg")){
-                                img.kPainterSaveFormat = "image/png";
-                            }else{ // like jpeg
-                                img.kPainterSaveFormat = "image/jpeg";
-                            }
-
-                            cvsToBlobAsync(tCvs, function(blob){
-                                afterGetBlob(img);
-                            }, img.kPainterSaveFormat);
+                            callback(null, '');
                         }
                     });
                 }
+            }else if(imgData instanceof HTMLImageElement){
+                var src;
+                //src maybe access denied
+                try{
+                    var src = imgData.src;
+                }catch(ex){
+                    setTimeout(function(){
+                        throw(ex);
+                    },0);
+                    callback(null, '');
+                    return;
+                }
+                getBlobAndFormatFromAnyImgData(src, function(blob, format){
+                    if(blob){
+                        callback(blob, format);
+                    }else{
+                        // url not available, maybe network problem
+                        // use imgData -> canvas -> blob instand 
+
+                        var tCvs = document.createElement('canvas');
+                        tCvs.width = imgData.naturalWidth;
+                        tCvs.height = imgData.naturalHeight;
+                        var ctx = tCvs.getContext('2d');
+                        ctx.drawImage(imgData, 0, 0);
+
+                        // use suffix guess image mime type
+                        var suffix = "";
+                        var questionPos = src.lastIndexOf("?");
+                        var dotPos = -1;
+                        if(-1 != questionPos){
+                            dotPos = src.lastIndexOf(".", questionPos);
+                            if(-1 != dotPos && questionPos - dotPos <= 5){ //max supported type suffix is 4
+                                suffix = src.substring(dotPos + 1, questionPos);
+                            }
+                        }else{
+                            dotPos = src.lastIndexOf(".");
+                            if(-1 != dotPos){
+                                if(src.length - dotPos <= 5){ //max supported type suffix is 4
+                                    suffix = src.substring(dotPos + 1);
+                                }else{
+                                    suffix = src.substring(dotPos + 1, dotPos + 5);
+                                }
+                            }
+                        }
+                        var saveFormat;
+                        if(-1 != suffix.indexOf("webp")){
+                            saveFormat = "image/webp";
+                        }else if(-1 != suffix.indexOf("png") || -1 != suffix.indexOf("gif") || -1 != suffix.indexOf("svg")){
+                            saveFormat = "image/png";
+                        }else{ // like jpeg
+                            saveFormat = "image/jpeg";
+                        }
+
+                        cvsToBlobAsync(tCvs, function(blob){
+                            afterGetBlob(blob);
+                        }, saveFormat);
+                    }
+                });
+            }else{
+                //not support
+                callback(null, '');
             }
         };
 
-        var fixImgOrient = function(img, tsf, callback){
+        var fixImgOrient = function(blob, tsf, format, callback){
             if(tsf){
                 // fix img from ios
-                blobToCvsAsync(img.kPainterBlob, tsf, function(tCvs){
+                blobToCvsAsync(blob, tsf, function(tCvs){
                     cvsToBlobAsync(tCvs, function(blob){
-                        img.kPainterBlob = blob;
-                        if(callback){ callback(); }
-                    }, img.kPainterSaveFormat);
+                        if(callback){ callback(blob); }
+                    }, format);
                 });
             }else{
-                if(callback){ callback(); }
+                if(callback){ callback(blob); }
             }
         };
 
         kPainter.isShowNewImgWhenAdd = true;
-        var addFinalImageAsync = function(img, callback){
-            img.kPainterOriBlob = img.kPainterBlob;
+        var addFinalImageAsync = function(blob, format, callback){
+            var img = new Image();
+            img.kPainterOriBlob = img.kPainterBlob = blob;
+            img.kPainterSaveFormat = format;
             var objUrl = URL.createObjectURL(img.kPainterBlob);
             img.onload = img.onerror = function(){
-				img.onload = img.onerror = null;
-				{
-					// walk around for ios safari bug
-					kPainter._noAnyUseButForIosSafariBug0 = img.naturalWidth;
-					kPainter._noAnyUseButForIosSafariBug1 = img.naturalHeight;
-				}
-				img.kPainterWidth = img.naturalWidth;
-				img.kPainterHeight = img.naturalHeight;
+                img.onload = img.onerror = null;
+                {
+                    // walk around for ios safari bug
+                    kPainter._noAnyUseButForIosSafariBug0 = img.naturalWidth;
+                    kPainter._noAnyUseButForIosSafariBug1 = img.naturalHeight;
+                }
+                img.kPainterWidth = img.naturalWidth;
+                img.kPainterHeight = img.naturalHeight;
                 img.kPainterOriWidth = img.kPainterWidth;
-				img.kPainterOriHeight = img.kPainterHeight;
+                img.kPainterOriHeight = img.kPainterHeight;
                 if(kPainter.isShowNewImgWhenAdd || -1 == curIndex){
                     showImg(imgArr.length - 1);
                 }
-                if(callback){ callback(); }
+                if(callback){ callback(true); }
             };
             img.src = objUrl;
             $(img).hide();
@@ -515,11 +537,23 @@ var KPainter = function(initSetting){
             index = Math.round(index);
             if(index < 0 || index >= imgArr.length){ return null; }
             var a = document.createElement('a');
-            filename = filename || (new Date()).getTime();
             a.target='_blank';
-            a.download = filename;
             var img = imgArr[index];
-            var objUrl = URL.createObjectURL(img.kPainterBlob);
+            var blob = img.kPainterBlob;
+            if(!filename){
+                var suffix = "";
+                if(blob.type){
+                    suffix = blob.type.substring(blob.type.indexOf('/'+1)+1);
+                }
+                if(suffix == "jpeg"){
+                    suffix = ".jpg";
+                }else{
+                    suffix = '.' + suffix;
+                }
+                filename = (new Date()).getTime() + suffix;
+            }
+            a.download = filename;
+            var objUrl = URL.createObjectURL(blob);
             a.href = objUrl;
             var ev = new MouseEvent('click',{
                 "view": window,
@@ -528,9 +562,9 @@ var KPainter = function(initSetting){
             });
             a.dispatchEvent(ev);
             //a.click();
-			setTimeout(function(){
-				URL.revokeObjectURL(objUrl);
-			}, 10000);
+            setTimeout(function(){
+                URL.revokeObjectURL(objUrl);
+            }, 10000);
             return filename;
         };
 
@@ -1101,7 +1135,10 @@ var KPainter = function(initSetting){
                 return;
             }
             index = Math.round(index);
-            if(index < 0 || index >= stack.length || null == stack[index]){ return; }
+            if(index < 0 || index >= stack.length || null == stack[index]){ 
+                doCallbackNoBreak(callback,[false]);
+                return; 
+            }
             fromToStepAsync(curStep, index, function(){
                 doCallbackNoBreak(callback,[true]);
             });
@@ -1119,7 +1156,7 @@ var KPainter = function(initSetting){
                 stack[fromStep].srcBlob == stack[curStep].srcBlob
             ){
                 // case only do transform, don't redraw mainCvs
-                $(mainCvs).setTransform(stack[curStep].transform);
+                $(mainCvs).setTransform(stack[curStep].transform.dot(stack[fromStep].transform.inversion()).dot($(mainCvs).getTransform()));
                 gesturer.setImgStyleFit();
                 if(callback){callback();}
             }else{
@@ -1261,6 +1298,7 @@ var KPainter = function(initSetting){
         var hideCvs = function(){
             $(mainCvs).hide();
             cropGesturer.hideCropRect();
+            opencv.hideFreeTransformBorderDirectly();
         };
 
         kPainter.enterEditAsync = function(callback){
@@ -1306,14 +1344,14 @@ var KPainter = function(initSetting){
                 tsf = stack[curStep].transform,
                 _crop = stack[0].crop,
                 _tsf = stack[0].transform;
-            var curImg = imgArr[curIndex];
-            if(!stack[curStep].srcBlob || _tsf.a != tsf.a || _tsf.b != tsf.b || _tsf.c != tsf.c || _tsf.d != tsf.d ||
-                Math.round(curImg.kPainterOriWidth * crop.left) != Math.round(curImg.kPainterOriWidth * _crop.left) ||
-                Math.round(curImg.kPainterOriHeight * crop.top) != Math.round(curImg.kPainterOriHeight * _crop.top) ||
-                Math.round(curImg.kPainterOriWidth * (crop.left + crop.width)) != Math.round(curImg.kPainterOriWidth * (_crop.left + _crop.width)) ||
-                Math.round(curImg.kPainterOriHeight * (crop.top + crop.height)) != Math.round(curImg.kPainterOriHeight * (_crop.top + _crop.height)) )
+            var oriImg = imgArr[curIndex];
+            if(stack[curStep].srcBlob || _tsf.a != tsf.a || _tsf.b != tsf.b || _tsf.c != tsf.c || _tsf.d != tsf.d ||
+                Math.round(oriImg.kPainterOriWidth * crop.left) != Math.round(oriImg.kPainterOriWidth * _crop.left) ||
+                Math.round(oriImg.kPainterOriHeight * crop.top) != Math.round(oriImg.kPainterOriHeight * _crop.top) ||
+                Math.round(oriImg.kPainterOriWidth * (crop.left + crop.width)) != Math.round(oriImg.kPainterOriWidth * (_crop.left + _crop.width)) ||
+                Math.round(oriImg.kPainterOriHeight * (crop.top + crop.height)) != Math.round(oriImg.kPainterOriHeight * (_crop.top + _crop.height)) )
             {
-                URL.revokeObjectURL(curImg.src);
+                URL.revokeObjectURL(oriImg.src);
                 var img = new Image(); //imgArr[curIndex];
                 var saveEditedCvsInner = function(){
                     img.onload = img.onerror = function(){
@@ -1328,24 +1366,24 @@ var KPainter = function(initSetting){
                         if(callback){callback();}
                     };
                     cvsToBlobAsync(mainCvs, function(blob){
-						img.kPainterBlob = blob;
-						img.kPainterWidth = mainCvs.width;
-						img.kPainterHeight = mainCvs.height;
+                        img.kPainterBlob = blob;
+                        img.kPainterWidth = mainCvs.width;
+                        img.kPainterHeight = mainCvs.height;
                         if(stack[curStep].srcBlob){
                             img.kPainterOriBlob = blob;
                             img.kPainterOriWidth = mainCvs.width;
-							img.kPainterOriHeight = mainCvs.height;
+                            img.kPainterOriHeight = mainCvs.height;
                             img.kPainterSaveFormat = stack[curStep].saveFormat;
                         }else{
-							img.kPainterOriBlob = curImg.kPainterOriBlob;
-							img.kPainterOriWidth = curImg.kPainterOriWidth;
-							img.kPainterOriHeight = curImg.kPainterOriHeight;
-							img.kPainterProcess = stack[curStep];
-							img.kPainterSaveFormat = curImg.kPainterSaveFormat;
-						}
+                            img.kPainterOriBlob = oriImg.kPainterOriBlob;
+                            img.kPainterOriWidth = oriImg.kPainterOriWidth;
+                            img.kPainterOriHeight = oriImg.kPainterOriHeight;
+                            img.kPainterProcess = stack[curStep];
+                            img.kPainterSaveFormat = oriImg.kPainterSaveFormat;
+                        }
                         var objUrl = URL.createObjectURL(blob);
                         img.src = objUrl;
-                    }, stack[curStep].saveFormat || curImg.kPainterSaveFormat);
+                    }, stack[curStep].saveFormat || oriImg.kPainterSaveFormat);
                 };
 
                 if(mainCvs.hasCompressed || tsf.a!=1 || tsf.b!=0 || tsf.c!=0 || tsf.d!=1 || tsf.e!=0 || tsf.f!=0){
@@ -1693,11 +1731,11 @@ var KPainter = function(initSetting){
         };
 
         var getCropRectArea = kPainter.getCropRectArea = function(isAbsolute){
+            if(!cropGesturer.isCropRectShowing){ return null; }
             if(cvsW != parseFloat(mainCvs.style.width)){
                 // update info only when zoom change
                 getInfo();
             }
-            if(!cropGesturer.isCropRectShowing){ return null; }
             var l = (left - cvsLeft) / cvsW - 0.5;
             var t = (top - cvsTop) / cvsH - 0.5;
             var w = width / cvsW;
@@ -1747,9 +1785,9 @@ var KPainter = function(initSetting){
                         height: b-t
                     }
                 });
-				editor.updateCvsAsync(editor.needAlwaysTrueTransform, false, function(){
-					doCallbackNoBreak(callback,[l,t,r,b]);
-				});
+                editor.updateCvsAsync(editor.needAlwaysTrueTransform, false, function(){
+                    doCallbackNoBreak(callback,[l,t,r,b]);
+                });
             }
         };
     };
@@ -1809,15 +1847,37 @@ var KPainter = function(initSetting){
                 return imgData;
             };
 
-            var handleImportSrc = function(importSrc){
-                var maxwh = 256;
+            var handleImportSrc = function(importSrc, maxwh, callback){
 
-                if(importSrc instanceof ImageData){
+                //tudo: handle blob,url
+                if(typeof importSrc == "string" || importSrc instanceof String || importSrc instanceof Blob){
+                    imgStorer.getBlobAndFormatFromAnyImgData(importSrc, function(blob){
+                        if(blob){
+                            blobToCvsAsync(blob, null, function(cvs){
+                                handleImportSrc(cvs, maxwh, callback);
+                            });
+                        }else{
+                            callback(null);
+                            return;
+                        }
+                    });
+                }else if(importSrc instanceof Image){
+                    try{
+                        kPainter._noUseButTestSrc = importSrc.src;
+                    }catch(ex){
+                        setTimeout(function(ex){throw ex;},0);
+                        callback(null);
+                        return;
+                    }
+                }else if(importSrc instanceof ImageData){
                     if(importSrc.width <= maxwh && importSrc.height <= maxwh){
-                        return importSrc;
+                        setTimeout(function(){
+                            callback(importSrc);
+                        },0);
+                        return;
                     }
                     var _importSrc = importSrc;
-                    var importSrc = document.createElement('canvas');
+                    importSrc = document.createElement('canvas');
                     importSrc.width = _importSrc.width;
                     importSrc.height = _importSrc.height;
                     importSrc.getContext("2d").putImageData(_importSrc, importSrc.width, importSrc.height);
@@ -1845,7 +1905,9 @@ var KPainter = function(initSetting){
                 var ctx = cvs.getContext("2d");
                 ctx.drawImage(importSrc, 0, 0, cvs.width, cvs.height);
 
-                return ctx.getImageData(0, 0, cvs.width, cvs.height);
+                setTimeout(function(){
+                    callback(ctx.getImageData(0, 0, cvs.width, cvs.height));
+                },0);
             };
             kPainter.documentDetectAsync = function(callback, importSrc){
                 if(!importSrc){
@@ -1857,10 +1919,9 @@ var KPainter = function(initSetting){
                 }
 
                 var cv = KPainter._cv;
+                handleImportSrc(importSrc || getThumbImgData(256), 256, function(imageData){
 
-                setTimeout(function(){
-
-                    var src = new cv.matFromArray((importSrc ? importSrc : getThumbImgData(256)), cv.CV_8UC4);
+                    var src = new cv.matFromArray(imageData, cv.CV_8UC4);
                     var srcW = src.cols, srcH = src.rows,
                         whMin = Math.min(src.cols, src.rows);
                     cv.cvtColor(src, src, cv.ColorConversionCodes.COLOR_RGBA2GRAY.value, 0);
@@ -2004,7 +2065,7 @@ var KPainter = function(initSetting){
                     var cornerPoints = [];
                     for(var i = 0; i < lineFiltered.length; ++i){
                         var line1 = lineFiltered[i],
-                            line2 = lineFiltered[(i + 1) % lineFiltered.length];
+                            line2 = lineFiltered[(i - 1 + lineFiltered.length) % lineFiltered.length];
                         var a1 = line1[0],
                             b1 = line1[1],
                             c1 = line1[2],
@@ -2024,7 +2085,7 @@ var KPainter = function(initSetting){
                     }
                     doCallbackNoBreak(callback,[cornerPoints]);
 
-                },0);
+                });
             };
             var GetfitLine = function(inputlines, outputlines, fitlineMaxDRange, fitlineMaxRadRange, maxLength){
                 for(var i = 0; i < inputlines.length; ++i){
@@ -2061,6 +2122,9 @@ var KPainter = function(initSetting){
                 }
             };
             var psptBox = mainBox.children(".kPainterPerspect");
+            opencv.hideFreeTransformBorderDirectly = function(){
+                psptBox.hide();
+            };
             var psptBorderCvs = mainBox.find("> .kPainterPerspect > .kPainterPerspectCvs")[0];
             var setCornerPos = kPainter.setFreeTransformCornerPos = function(cornerPoints){
                 if(gestureStatus != 'perspect'){ return; }
@@ -2235,8 +2299,8 @@ var KPainter = function(initSetting){
                 }
             });
             
-            kPainter.freeTransformAsync = function(callback){
-                if(gestureStatus != 'perspect'){ 
+            kPainter.freeTransformAsync = function(callback, cornerPoints, importSrc){
+                if(!importSrc && gestureStatus != 'perspect'){ 
                     doCallbackNoBreak(callback,[false]);
                     return; 
                 }
@@ -2244,24 +2308,24 @@ var KPainter = function(initSetting){
 
                 var cv = KPainter._cv;
 
-                var cornerPoints = getCornerPos();
+                cornerPoints = cornerPoints || getCornerPos();
                 var cps = cornerPoints;
                 //tudo: more acurate
                 if(Math.abs(cps[0][0] - 0.5) < 0.005 &&
-                    Math.abs(cps[0][1] + 0.5) < 0.005 &&
-                    Math.abs(cps[1][0] - 0.5) < 0.005 &&
+                    Math.abs(cps[0][1] - 0.5) < 0.005 &&
+                    Math.abs(cps[1][0] + 0.5) < 0.005 &&
                     Math.abs(cps[1][1] - 0.5) < 0.005 &&
                     Math.abs(cps[2][0] + 0.5) < 0.005 &&
-                    Math.abs(cps[2][1] - 0.5) < 0.005 &&
-                    Math.abs(cps[3][0] + 0.5) < 0.005 &&
+                    Math.abs(cps[2][1] + 0.5) < 0.005 &&
+                    Math.abs(cps[3][0] - 0.5) < 0.005 &&
                     Math.abs(cps[3][1] + 0.5) < 0.005){
                     onFinishLoadingNoBreak();
                     if(typeof callback == "function"){callback();}
                     return;
                 }
-                setTimeout(function(){
+                handleImportSrc(importSrc || getThumbImgData(2048), 2048, function(imageData){
 
-                    var src = new cv.matFromArray(getThumbImgData(2048), cv.CV_8UC4);
+                    var src = new cv.matFromArray(imageData, cv.CV_8UC4);
                     cv.cvtColor(src, src, cv.ColorConversionCodes.COLOR_RGBA2RGB.value, 0);
 
                     var fromCornerMat = new cv.Mat.zeros(4, 1, cv.CV_32FC2); //cv.Point2fVector();
@@ -2272,22 +2336,22 @@ var KPainter = function(initSetting){
                         fcd[2 * i + 1] = Math.round((p[1] + 0.5) * src.rows);
                     }
 
-                    var x0 = fcd[0] - fcd[6],
-                        y0 = fcd[1] - fcd[7],
-                        x1 = fcd[0] - fcd[2],
-                        y1 = fcd[3] - fcd[1],
-                        x2 = fcd[2] - fcd[4],
-                        y2 = fcd[5] - fcd[3],
-                        x3 = fcd[6] - fcd[4],
-                        y3 = fcd[5] - fcd[7];
+                    var x0 = fcd[2] - fcd[0],
+                        y0 = fcd[3] - fcd[1],
+                        x1 = fcd[4] - fcd[2],
+                        y1 = fcd[5] - fcd[3],
+                        x2 = fcd[6] - fcd[4],
+                        y2 = fcd[7] - fcd[5],
+                        x3 = fcd[0] - fcd[6],
+                        y3 = fcd[1] - fcd[7];
                     var psptWidth = Math.round(Math.max(Math.sqrt(x0 * x0 + y0 * y0), Math.sqrt(x2 * x2 + y2 * y2))), 
                         psptHeight = Math.round(Math.max(Math.sqrt(x1 * x1 + y1 * y1), Math.sqrt(x3 * x3 + y3 * y3)));
                     var toCornerMat = new cv.Mat.zeros(4, 1, cv.CV_32FC2);//cv.Point2fVector();
                     var toCornerData32f = toCornerMat.data32f();
-                    toCornerData32f[0] = psptWidth;
                     toCornerData32f[2] = psptWidth;
-                    toCornerData32f[3] = psptHeight;
+                    toCornerData32f[4] = psptWidth;
                     toCornerData32f[5] = psptHeight;
+                    toCornerData32f[7] = psptHeight;
                     var tsfMat = cv.getPerspectiveTransform(fromCornerMat, toCornerMat);
                     cv.delMat(fromCornerMat);
                     cv.delMat(toCornerMat);
@@ -2318,22 +2382,25 @@ var KPainter = function(initSetting){
                     gesturer.setImgStyleFit();
 
                     cvsToBlobAsync(mainCvs, function(blob){
-                        editor.pushStack({
-                            srcBlob: blob,
-                            saveFormat: "image/jpeg"
-                        });
-                        editor.updateCvsAsync(true,false,function(){
-                            setCornerPos([[0.5,-0.5],[0.5,0.5],[-0.5,0.5],[-0.5,-0.5]]);
-                            //if(kPainter.isAutoShowCropUI){ cropGesturer.showCropRect(); }
-                            //gestureStatus = null;
+                        if(importSrc){
+                            doCallbackNoBreak(callback,[blob]);
+                        }else{
+                            editor.pushStack({
+                                srcBlob: blob,
+                                saveFormat: "image/jpeg"
+                            });
+                            editor.updateCvsAsync(true,false,function(){
+                                setCornerPos([[-0.5,-0.5],[0.5,-0.5],[0.5,0.5],[-0.5,0.5]]);
+                                //if(kPainter.isAutoShowCropUI){ cropGesturer.showCropRect(); }
+                                //gestureStatus = null;
 
-                            onFinishLoadingNoBreak();
-
-                            doCallbackNoBreak(callback,[true]);
-                        });
+                                onFinishLoadingNoBreak();
+                                doCallbackNoBreak(callback,[true]);
+                            });
+                        }
                     }, "image/jpeg");
 
-                }, 0);
+                });
             };
             kPainter.enterFreeTransformModeAsync = function(callback){
                 if(!isEditing || !KPainter.cvHasLoaded){ 
@@ -2345,7 +2412,7 @@ var KPainter = function(initSetting){
                 setTimeout(function(){
                     cropGesturer.hideCropRect();
                     editor.updateCvsAsync(true, false, function(){
-                        setCornerPos([[0.5,-0.5],[0.5,0.5],[-0.5,0.5],[-0.5,-0.5]]);
+                        setCornerPos([[-0.5,-0.5],[0.5,-0.5],[0.5,0.5],[-0.5,0.5]]);
                         psptBox.show();
                         onFinishLoadingNoBreak();
                         editor.needAlwaysTrueTransform = true;
