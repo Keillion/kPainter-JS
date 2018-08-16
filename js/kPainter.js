@@ -1,3 +1,4 @@
+/*global $, kUtil*/
 var KPainter = function(initSetting){
     var kPainter = this;
 
@@ -55,7 +56,7 @@ var KPainter = function(initSetting){
                 callback(imgToCvs(img, tsf));
             }).catch(function(){
                 useObjurlToDrawBlobToCvs();
-            })
+            });
         }else{
             useObjurlToDrawBlobToCvs();
         }
@@ -63,6 +64,7 @@ var KPainter = function(initSetting){
 
     doCallbackNoBreak = KPainter._doCallbackNoBreak;
 
+    /*eslint-disable indent*/
     var containerDiv = $([
         '<div style="width:800px;height:600px;border:1px solid #ccc;">',
             '<div class="kPainterBox">',
@@ -107,6 +109,7 @@ var KPainter = function(initSetting){
             '</div>',
         '</div>'
     ].join(''))[0];
+    /*eslint-enable indent*/
     var mainBox = $(containerDiv).children();
     var mainCvs = mainBox.find('> .kPainterImgsDiv > .kPainterCanvas')[0];
 
@@ -182,10 +185,10 @@ var KPainter = function(initSetting){
                 doCallbackNoBreak(callback,[false]);
                 return;
             }
-            if(imgData instanceof Blob){
-            }else if(imgData instanceof HTMLCanvasElement){
-            }else if(typeof imgData == "string" || imgData instanceof String){
-            }else if(imgData instanceof HTMLImageElement){
+            if(imgData instanceof Blob){//
+            }else if(imgData instanceof HTMLCanvasElement){//
+            }else if(typeof imgData == "string" || imgData instanceof String){//
+            }else if(imgData instanceof HTMLImageElement){//
             }else{
                 doCallbackNoBreak(callback,[false]);
                 return;
@@ -213,8 +216,8 @@ var KPainter = function(initSetting){
             EXIF.getData(blob, function(){
                 // img from ios may have orientation
                 var orient = EXIF.getTag(this, 'Orientation');//,
-                    //pxX = EXIF.getTag(this, 'PixelXDimension'),
-                    //pxY = EXIF.getTag(this, 'PixelYDimension');
+                    // pxX = EXIF.getTag(this, 'PixelXDimension'),
+                    // pxY = EXIF.getTag(this, 'PixelYDimension');
                 var tsf = null;
                 switch(orient){
                     case 6: tsf = new kUtil.Matrix(0,1,-1,0,1,0); break;
@@ -739,7 +742,7 @@ var KPainter = function(initSetting){
             left = parseFloat(gesImg.style.left) + absoluteCenterDistance;
             top = parseFloat(gesImg.style.top) + absoluteCenterDistance;
             imgTsf = $(gesImg).getTransform();
-            if(0 != imgTsf.a*imgTsf.d && 0 == imgTsf.b*imgTsf.c){
+            if(0 != imgTsf.a*imgTsf.d && 0 == imgTsf.b*imgTsf.c){//
             }else{
                 var temp = imgW;
                 imgW = imgH, imgH = temp;
@@ -962,7 +965,7 @@ var KPainter = function(initSetting){
             index = parseInt(index);
             if(index !== index){return;}//NaN
             var pos = stepProtectedArr.indexOf(index);
-            if(pos == -1){return}//not exist
+            if(pos == -1){return;}//not exist
             stepProtectedArr.splice(pos, 1);
         };
         kPainter.getProtectedSteps = function(){
@@ -1730,7 +1733,7 @@ var KPainter = function(initSetting){
             left = cvsLeft + (l + 0.5) * cvsW;
             if(left < minLeft){left = minLeft;}
             top = cvsTop + (t + 0.5) * cvsH;
-            if(top < minTop){top = minTop};
+            if(top < minTop){top = minTop;}
             var right = cvsLeft + (r + 0.5) * cvsW;
             if(right > maxRight){right = maxRight;}
             width = right - left;
@@ -2080,7 +2083,7 @@ var KPainter = function(initSetting){
                         var a1 = line1[0],
                             b1 = line1[1],
                             c1 = line1[2],
-                            rad1 = line1[3];
+                            rad1 = line1[3],
                             a2 = line2[0],
                             b2 = line2[1],
                             c2 = line2[2],
@@ -2548,24 +2551,24 @@ KPainter.loadCvScriptAsync = function(callback){
     if(window.WebAssembly){
         //webassembly
         $.ajax({
-             type: "GET",
-             url: KPainter.cvFolder+"/cv-wasm.js?v=20180320",
-             dataType: "script",
-             cache: true,
-             onerror:function(){
+            type: "GET",
+            url: KPainter.cvFolder+"/cv-wasm.js?v=20180320",
+            dataType: "script",
+            cache: true,
+            onerror:function(){
                 KPainter._doCallbackNoBreak(callback,[false]);
-             }
-         });
+            }
+        });
     }else{
         //asm js
         $.ajax({
-             type: "GET",
-             url: KPainter.cvFolder+"/cv.js?v=20180320",
-             dataType: "script",
-             cache: true,
-             onerror:function(){
+            type: "GET",
+            url: KPainter.cvFolder+"/cv.js?v=20180320",
+            dataType: "script",
+            cache: true,
+            onerror:function(){
                 KPainter._doCallbackNoBreak(callback,[false]);
-             }
-         });
+            }
+        });
     }
 };
