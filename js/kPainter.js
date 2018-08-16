@@ -39,11 +39,7 @@ var KPainter = function(initSetting){
         return tCvs;
     };
     var blobToCvsAsync = function(blob, tsf, callback){
-        if(window.createImageBitmap){
-            createImageBitmap(blob).then(function(img){
-                callback(imgToCvs(img, tsf));
-            });
-        }else{
+        var useObjurlToDrawBlobToCvs = function(){
             var objUrl = URL.createObjectURL(blob);
             var img = new Image();
             img.onload = img.onerror = function(){
@@ -53,6 +49,15 @@ var KPainter = function(initSetting){
                 callback(tCvs);
             };
             img.src = objUrl;
+        };
+        if(window.createImageBitmap){
+            createImageBitmap(blob).then(function(img){
+                callback(imgToCvs(img, tsf));
+            }).catch(function(){
+                useObjurlToDrawBlobToCvs();
+            })
+        }else{
+            useObjurlToDrawBlobToCvs();
         }
     };
 
@@ -543,7 +548,7 @@ var KPainter = function(initSetting){
             if(!filename){
                 var suffix = "";
                 if(blob.type){
-                    suffix = blob.type.substring(blob.type.indexOf('/'+1)+1);
+                    suffix = blob.type.substring(blob.type.indexOf('/')+1);
                 }
                 if(suffix == "jpeg"){
                     suffix = ".jpg";
@@ -1183,12 +1188,7 @@ var KPainter = function(initSetting){
             var process = stack[curStep];
             var blob = process.srcBlob || imgArr[curIndex].kPainterOriBlob;
 
-            if(window.createImageBitmap){
-                createImageBitmap(blob).then(function(img){
-                    updateCvsInner(img, process, bTrueTransform, bNotShow);
-                    if(callback){callback();}
-                });
-            }else{
+            var useObjurlToDrawBlobToImg = function(){
                 var objUrl = URL.createObjectURL(blob);
                 var img = new Image();
                 img.onload = img.onerror = function(){
@@ -1198,6 +1198,17 @@ var KPainter = function(initSetting){
                     if(callback){callback();}
                 };
                 img.src = objUrl;
+            };
+
+            if(window.createImageBitmap){
+                createImageBitmap(blob).then(function(img){
+                    updateCvsInner(img, process, bTrueTransform, bNotShow);
+                    if(callback){callback();}
+                }).catch(function(){
+                    useObjurlToDrawBlobToImg();
+                });
+            }else{
+                useObjurlToDrawBlobToImg();
             }
         };
         var updateCvsInner = function(img, process, bTrueTransform, bNotShow){
