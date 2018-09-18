@@ -1,9 +1,9 @@
-/*global $, kUtil*/
-var KPainter = function(initSetting){
+/*global $, kUtil, TaskQueue, EXIF*/
+var KPainter = function(/*initSetting*/){
     var kPainter = this;
 
-    initSetting = initSetting || {};
-    /*var isSupportTouch;
+    /*initSetting = initSetting || {};
+    var isSupportTouch;
     if("mouse" == initSetting.gesturer){
         isSupportTouch = false;
     }else if("touch" == initSetting.gesturer){
@@ -12,7 +12,7 @@ var KPainter = function(initSetting){
         isSupportTouch = "ontouchend" in document ? true : false;
     }*/
     
-    var isMobileSafari = (/iPhone/i.test(navigator.platform) || /iPod/i.test(navigator.platform) || /iPad/i.test(navigator.userAgent)) && !!navigator.appVersion.match(/(?:Version\/)([\w\._]+)/); 
+    //var isMobileSafari = (/iPhone/i.test(navigator.platform) || /iPod/i.test(navigator.platform) || /iPad/i.test(navigator.userAgent)) && !!navigator.appVersion.match(/(?:Version\/)([\w\._]+)/); 
     var absoluteCenterDistance = 100000;
     
     var cvsToBlobAsync = function(cvs, callback, mimeType, quality){
@@ -62,7 +62,7 @@ var KPainter = function(initSetting){
         }
     };
 
-    doCallbackNoBreak = KPainter._doCallbackNoBreak;
+    var doCallbackNoBreak = KPainter._doCallbackNoBreak;
 
     /*eslint-disable indent*/
     var containerDiv = $([
@@ -215,6 +215,7 @@ var KPainter = function(initSetting){
             }
             EXIF.getData(blob, function(){
                 // img from ios may have orientation
+                /*eslint-disable indent*/
                 var orient = EXIF.getTag(this, 'Orientation');//,
                     // pxX = EXIF.getTag(this, 'PixelXDimension'),
                     // pxY = EXIF.getTag(this, 'PixelYDimension');
@@ -225,6 +226,7 @@ var KPainter = function(initSetting){
                     case 8: tsf = new kUtil.Matrix(0,-1,1,0,0,1); break;
                     default: break;
                 }
+                /*eslint-enable indent*/
                 callback(tsf);
             });
         };
@@ -236,7 +238,7 @@ var KPainter = function(initSetting){
                 var hInt8Arr = new Int8Array(fileReader.result);
                 var sign = hInt8Arr[0];
                 callback(4 == (sign & 4));
-            }
+            };
             fileReader.readAsArrayBuffer(hBlob);
         };
         var getSaveFormat = function(blob, callback){
@@ -281,6 +283,7 @@ var KPainter = function(initSetting){
                     afterGetBlob(blob);
                 });
             }else if(typeof imgData == "string" || imgData instanceof String){
+                var url = imgData;
                 if("data:" == url.substring(0, 5)){ // url is base64
                     var mimeType = "";
                     if("image/" == url.substring(5, 11)){
@@ -301,7 +304,7 @@ var KPainter = function(initSetting){
                 var src;
                 //src maybe access denied
                 try{
-                    var src = imgData.src;
+                    src = imgData.src;
                 }catch(ex){
                     setTimeout(function(){
                         throw(ex);
@@ -405,7 +408,7 @@ var KPainter = function(initSetting){
         var setImgStyleNoRatateFit = function(){
             var img = imgArr[curIndex];
             var box = mainBox;
-            var pbr = box.paddingBoxRect();
+            var pbr = box.paddingBoxRect();//eslint-disable-line
             var cbr = box.contentBoxRect();
             var zoom = img.kPainterZoom = Math.min(cbr.width/img.kPainterWidth,cbr.height/img.kPainterHeight);
             //img.style.transform = "";
@@ -433,7 +436,7 @@ var KPainter = function(initSetting){
 
         var resizeTaskId = null;
         var resizeTimeout = 500;
-        var isWaitingResize = false;
+        var isWaitingResize = false;//eslint-disable-line
         var beforeTimeoutIsEditing;
         kPainter.updateUIOnResize = function(isLazy){
             if(null != resizeTaskId){
@@ -495,6 +498,7 @@ var KPainter = function(initSetting){
         kPainter.changePage = function(cmd){
             if(isEditing){ return false; }
             var index;
+            /*eslint-disable indent*/
             switch(cmd){
                 case "f": index = 0; break;
                 case "p": index = curIndex - 1; break;
@@ -505,8 +509,9 @@ var KPainter = function(initSetting){
                         return false;
                     }else{
                         index = Math.round(cmd);
-                    };
+                    }
             }
+            /*eslint-enable indent*/
             if(index < 0 || index >= imgArr.length || index == curIndex){ return false; }
             showImg(index);
             return true;
@@ -590,7 +595,7 @@ var KPainter = function(initSetting){
         var clickDownX, clickDownY, clickUpX, clickUpY;
 
         var x0, y0, cx, cy, x1, y1, length,
-            bpbr, bcbr, bpl, bpt, 
+            bpbr, bcbr,
             gesImg, imgTsf, imgW, imgH, 
             left, top, zoom, minZoom, maxZoom = 4;
 
@@ -708,7 +713,7 @@ var KPainter = function(initSetting){
                         horMovLen, horMovSpd;
                     if(rate < maxSpdSwitchRate){
                         spdSwitchAble = true;
-                        horMovLen = x0 - clickDownX;
+                        horMovLen = Math.sqrt(Math.pow(x0 - clickDownX, 2) + Math.pow(y0 - clickDownY, 2));
                         horMovSpd = horMovLen / (((new Date()).getTime() - clickTime) / 1000);
                     }
                     if(left < -(Math.round(imgW*zoom) || 1)/2 || (spdSwitchAble && horMovLen < -minSwitchMovLen && horMovSpd < -minSwitchMovSpd)){
@@ -834,7 +839,7 @@ var KPainter = function(initSetting){
             if(0 == imgArr.length){
                 return undefined;
             }
-            var num = parseFloat(num);
+            num = parseFloat(num);
             if(num !== num){
                 return undefined;
             }
@@ -846,7 +851,7 @@ var KPainter = function(initSetting){
             correctPosZoom();
             updateImgPosZoom();
             return zoom;
-        }
+        };
 
         gesturer.setImgStyleFit = function(){
             getImgInfo(true);
@@ -985,6 +990,7 @@ var KPainter = function(initSetting){
                 }
             }
 
+            var process;
             if(!step.srcBlob){
                 var _process = stack[curStep], 
                     _crop = _process.crop,
@@ -1044,7 +1050,7 @@ var KPainter = function(initSetting){
                 crop.width = Math.round(crop.width*accuracy)/accuracy;
                 crop.height = Math.round(crop.height*accuracy)/accuracy;
 
-                var process = {
+                process = {
                     crop: crop,
                     transform: tsf,
                     srcBlob: _process.srcBlob,
@@ -1059,7 +1065,7 @@ var KPainter = function(initSetting){
                 }
 
             }else{
-                var process = {
+                process = {
                     crop: {
                         left: 0,
                         top: 0,
@@ -1072,7 +1078,7 @@ var KPainter = function(initSetting){
                 };
 
                 // GC
-                for(var i = 0;stepImgsInfoArr.length >= kPainter.stepImgsGCThreshold;){
+                for(var i = 0;stepImgsInfoArr.length >= kPainter.stepImgsGCThreshold;){//eslint-disable-line
                     if(stepProtectedArr.filter(function(value){
                         return stepImgsInfoArr[i].beginStep <= value && value < stepImgsInfoArr[i].endStep;
                     }).length){
@@ -1150,7 +1156,7 @@ var KPainter = function(initSetting){
             fromToStepAsync(curStep, index, function(){
                 doCallbackNoBreak(callback,[true]);
             });
-        }
+        };
 
         editor.needAlwaysTrueTransform = false;
         var fromToStepAsync = function(fromStep, toStep, callback){
@@ -1481,11 +1487,11 @@ var KPainter = function(initSetting){
             cropGesturer.isCropRectShowing = true;
             setCropRectArea();
             kPainterCroper.show();
-        }
+        };
         kPainter.hideCropRect = cropGesturer.hideCropRect = function(){
             cropGesturer.isCropRectShowing = false;
             kPainterCroper.hide();
-        }
+        };
 
         kPainterCroper.css({
             "border-left-width":absoluteCenterDistance+"px",
@@ -1498,6 +1504,7 @@ var KPainter = function(initSetting){
             "bottom":-absoluteCenterDistance+"px"});
 
         kPainter.setCropRectStyle = function(styleNo){
+            /*eslint-disable indent*/
             switch(styleNo){
                 case 0: {
                     kPainterCroper.find('>.kPainterBigMover').hide();
@@ -1512,9 +1519,10 @@ var KPainter = function(initSetting){
                 default:
                     return false;
             }
+            /*eslint-enable indent*/
         };
         
-        var x0, y0, moveTouchId, orientX, orientY, bpbr, bcbr, 
+        var x0, y0, moveTouchId, orientX, orientY, bcbr, 
             cvsLeft, cvsTop, cvsRight, cvsBottom, cvsW, cvsH,
             left, top, width, height,
             minLeft, minTop, maxRight, maxBottom;
@@ -1586,7 +1594,7 @@ var KPainter = function(initSetting){
         };
         var getCvsInfo = function(){
             var tsf = $(mainCvs).getTransform();
-            var zoom = mainCvs.kPainterZoom;
+            //var zoom = mainCvs.kPainterZoom;
             var cx = parseFloat(mainCvs.style.left)+absoluteCenterDistance;
             var cy = parseFloat(mainCvs.style.top)+absoluteCenterDistance;
             if(0 != tsf.a*tsf.d && 0 == tsf.b*tsf.c){
@@ -1603,7 +1611,7 @@ var KPainter = function(initSetting){
         mainBox.find('> .kPainterCroper > .kPainterEdges > div, > .kPainterCroper > .kPainterCorners > div, > .kPainterCroper > .kPainterMover, > .kPainterCroper > .kPainterBigMover')
             .on('touchstart touchcancel touchend mousedown', onTouchChange);
         
-        mainBox.on('mouseup', function(jqEvent){
+        mainBox.on('mouseup', function(/*jqEvent*/){
             if('mouse' != workingPointerDevice){
                 return;
             }
@@ -1763,7 +1771,7 @@ var KPainter = function(initSetting){
                 b = Math.round(b * mainCvs.fullQualityHeight);
             }
             return [l,t,r,b];
-        }
+        };
 
         cropGesturer.getNeededRect = function(){
             getInfo();
@@ -1964,7 +1972,7 @@ var KPainter = function(initSetting){
                     cv.delMat(linesMat);
 
                     var linesAll = [];
-                    for(var i=0;i<linePxys.length;i+=4){
+                    for(var i=0;i<linePxys.length;i+=4){//eslint-disable-line
                         var x0 = linePxys[i+0],
                             y0 = linePxys[i+1],
                             x1 = linePxys[i+2],
@@ -2025,9 +2033,9 @@ var KPainter = function(initSetting){
                     GetfitLine(linePreFiteds, lineFiteds, fitlineMaxDRange, fitlineMaxRadRange, whMin*0.7);
 
                     var lineFiltered = [null, null, null, null];
-                    for(var i = 0; i < lineFiteds.length; ++i){
+                    for(var i = 0; i < lineFiteds.length; ++i){//eslint-disable-line
                         var line = lineFiteds[i];
-                        var rad = line[3];
+                        var rad = line[3];//eslint-disable-line
                         var pos = null;
                         if(rad < -Math.PI * 3 / 4){
                             pos = 0;
@@ -2045,15 +2053,15 @@ var KPainter = function(initSetting){
                         }else{
                             var _line = lineFiltered[pos];
                             var _c = _line[2], _l = _line[4],
-                                c =  line[2], l = line[4];
+                                c =  line[2], l = line[4];//eslint-disable-line
                             if(c * l > _c * _l){
                                 lineFiltered[pos] = line;
                             }
                         }
                     }
 
-                    for(var i = 0; i < lineFiltered.length; ++i){
-                        var line = lineFiltered[i];
+                    for(var i = 0; i < lineFiltered.length; ++i){//eslint-disable-line
+                        var line = lineFiltered[i];//eslint-disable-line
                         if(null == line){
                             // line not found, use border
                             line = [];
@@ -2077,19 +2085,19 @@ var KPainter = function(initSetting){
                     }
 
                     var cornerPoints = [];
-                    for(var i = 0; i < lineFiltered.length; ++i){
+                    for(var i = 0; i < lineFiltered.length; ++i){//eslint-disable-line
                         var line1 = lineFiltered[i],
                             line2 = lineFiltered[(i - 1 + lineFiltered.length) % lineFiltered.length];
                         var a1 = line1[0],
                             b1 = line1[1],
                             c1 = line1[2],
-                            rad1 = line1[3],
+                            rad1 = line1[3],//eslint-disable-line
                             a2 = line2[0],
                             b2 = line2[1],
                             c2 = line2[2],
-                            rad2 = line2[3];
-                        var x0 = (b1 * c2 - b2 * c1) / (b2 * a1 - b1 * a2),
-                            y0 = (a1 * c2 - a2 * c1) / (a2 * b1 - a1 * b2);
+                            rad2 = line2[3];//eslint-disable-line
+                        var x0 = (b1 * c2 - b2 * c1) / (b2 * a1 - b1 * a2),//eslint-disable-line
+                            y0 = (a1 * c2 - a2 * c1) / (a2 * b1 - a1 * b2);//eslint-disable-line
                         cornerPoints.push([x0 / srcW, y0 / srcH]);
                     }
 
@@ -2292,7 +2300,7 @@ var KPainter = function(initSetting){
                 }
             });
             
-            mainBox.on('mouseup', function(jqEvent){
+            mainBox.on('mouseup', function(/*jqEvent*/){
                 if('mouse' != workingPointerDevice){
                     return;
                 }
@@ -2380,7 +2388,7 @@ var KPainter = function(initSetting){
                     var imgData = new ImageData(psptWidth, psptHeight);
                     var channels = perspectTsfed.channels();
                     var data = perspectTsfed.data();
-                    for (var i = 0, j = 0; i < data.length; i += channels, j+=4) {
+                    for (var i = 0, j = 0; i < data.length; i += channels, j+=4) {//eslint-disable-line
                         imgData.data[j] = data[i];
                         imgData.data[j + 1] = data[i+1%channels];
                         imgData.data[j + 2] = data[i+2%channels];
@@ -2450,8 +2458,8 @@ var KPainter = function(initSetting){
         })();
     };
 
-    var videoMdl = new function(){
-        var videoMdl = this;
+    var videoMdl = new function(){//eslint-disable-line
+        var videoMdl = this;//eslint-disable-line
 
         var videoMdlDom = mainBox.children('.kPainterVideoMdl');
         var video = videoMdlDom.children('.kPainterVideo')[0];
@@ -2509,7 +2517,7 @@ KPainter.cvFolder = (KPainter.cvFolder == undefined ? "js" : KPainter.cvFolder)
 KPainter.cvHasLoaded = false;
 
 KPainter._doCallbackNoBreak = function(callback, paras){
-    if(callback){try{callback.apply(window, paras||[]);}catch(ex){setTimeout(function(){throw(ex)},0);}}
+    if(callback){try{callback.apply(window, paras||[]);}catch(ex){setTimeout(function(){throw(ex);},0);}}
 };
 KPainter.loadCvScriptAsync = function(callback){
     if(KPainter.cvHasLoaded){
