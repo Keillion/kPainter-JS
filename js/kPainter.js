@@ -1345,6 +1345,7 @@ var KPainter = function(/*initSetting*/){
 
             showCvsAsync(function(){
                 onFinishLoadingNoBreak();
+                gestureStatus = null;
                 doCallbackNoBreak(callback,[true]);
             });
         };
@@ -1356,6 +1357,7 @@ var KPainter = function(/*initSetting*/){
             stepImgsInfoArr.length = 0;
             imgStorer.showImg(curIndex);
             hideCvs();
+            gestureStatus = null;
             return true;
         };
 
@@ -1430,6 +1432,7 @@ var KPainter = function(/*initSetting*/){
                     quitEdit();
                     onFinishLoadingNoBreak();
                     isSavingEdit = false;
+                    gestureStatus = null;
                     doCallbackNoBreak(callback,[true]);
                 }, isCover);
             },100);
@@ -1580,7 +1583,7 @@ var KPainter = function(/*initSetting*/){
         };
         var getInfo = function(){
             var box = mainBox;
-            bpbr = box.paddingBoxRect();
+            //bpbr = box.paddingBoxRect();
             bcbr = box.contentBoxRect();
             getCvsInfo();
             width = parseFloat(kPainterCroper[0].style.width);
@@ -2415,6 +2418,7 @@ var KPainter = function(/*initSetting*/){
                                 setCornerPos([[-0.5,-0.5],[0.5,-0.5],[0.5,0.5],[-0.5,0.5]]);
                                 //if(kPainter.isAutoShowCropUI){ cropGesturer.showCropRect(); }
                                 //gestureStatus = null;
+                                gestureStatus = 'perspect';
 
                                 onFinishLoadingNoBreak();
                                 doCallbackNoBreak(callback,[true]);
@@ -2513,7 +2517,7 @@ var KPainter = function(/*initSetting*/){
     };
 };
 
-KPainter.cvFolder = (KPainter.cvFolder == undefined ? "js" : KPainter.cvFolder)
+KPainter.cvFolder = (KPainter.cvFolder == undefined ? "js" : KPainter.cvFolder);
 KPainter.cvHasLoaded = false;
 
 KPainter._doCallbackNoBreak = function(callback, paras){
@@ -2560,7 +2564,7 @@ KPainter.loadCvScriptAsync = function(callback){
         //webassembly
         $.ajax({
             type: "GET",
-            url: KPainter.cvFolder+"/cv-wasm.js?v=20180320",
+            url: KPainter.cvFolder+"/cv-wasm.js?v=20180921",
             dataType: "script",
             cache: true,
             onerror:function(){
@@ -2571,7 +2575,7 @@ KPainter.loadCvScriptAsync = function(callback){
         //asm js
         $.ajax({
             type: "GET",
-            url: KPainter.cvFolder+"/cv.js?v=20180320",
+            url: KPainter.cvFolder+"/cv.js?v=201800921",
             dataType: "script",
             cache: true,
             onerror:function(){
