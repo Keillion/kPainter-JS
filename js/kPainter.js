@@ -1,8 +1,8 @@
 /*global $, kUtil, TaskQueue, EXIF*/
-var KPainter = function(/*initSetting*/){
+var KPainter = function(initSetting){
     var kPainter = this;
 
-    /*initSetting = initSetting || {};
+    initSetting = initSetting || {};
     var isSupportTouch;
     if("mouse" == initSetting.gesturer){
         isSupportTouch = false;
@@ -10,7 +10,8 @@ var KPainter = function(/*initSetting*/){
         isSupportTouch = true;
     }else{
         isSupportTouch = "ontouchend" in document ? true : false;
-    }*/
+    }
+    KPainter.xxx = isSupportTouch;
     
     //var isMobileSafari = (/iPhone/i.test(navigator.platform) || /iPod/i.test(navigator.platform) || /iPad/i.test(navigator.userAgent)) && !!navigator.appVersion.match(/(?:Version\/)([\w\._]+)/); 
     var absoluteCenterDistance = 100000;
@@ -129,6 +130,7 @@ var KPainter = function(/*initSetting*/){
     kPainter.isEditing = function(){
         return isEditing;
     };
+
     kPainter.getImage = function(isOri, index){
         if(undefined == index){
             index = curIndex;
@@ -136,7 +138,14 @@ var KPainter = function(/*initSetting*/){
         if(isNaN(index)){ return; }
         index = Math.round(index);
         if(index < 0 || index >= imgArr.length){ return; }
-        return isOri ? imgArr[index] : $(imgArr[index]).clone()[0];
+        var img;
+        if(isOri){
+            img = imgArr[index];
+        }else{
+            img = $(imgArr[index]).clone()[0];
+            img.setAttribute('style','');
+        }
+        return img;
     };
 
     kPainter.onStartLoading = null;
@@ -154,10 +163,12 @@ var KPainter = function(/*initSetting*/){
         var imgStorer = this;
 
         var hiddenFileIpt = $('<input type="file" accept="image/bmp,image/gif,image/jpeg,image/png,image/webp" multiple style="display:none">');
+        kPainter.onAddImgFromFileChooseWindow = null;
         $(hiddenFileIpt).change(function(){
-            for(var i=0; i<this.files.length; ++i){
+            for(var i=0; i<this.files.length - 1; ++i){
                 addImageAsync(this.files[i]); // have queued inner, so not recur
             }
+            addImageAsync(this.files[this.files.length - 1], kPainter.onAddImgFromFileChooseWindow);
             $(this).val('');
         });
 
@@ -258,7 +269,9 @@ var KPainter = function(/*initSetting*/){
         var addImageTask = function(imgData, callback){
             getBlobAndFormatFromAnyImgData(imgData, function(blob, format){
                 if(blob){
-                    addFinalImageAsync(blob, format, callback);
+                    doCallbackNoBreak(function(){//wrap only for check
+                        addFinalImageAsync(blob, format, callback);
+                    });
                 }else{
                     callback(false);
                 }
@@ -397,12 +410,53 @@ var KPainter = function(/*initSetting*/){
                 if(kPainter.isShowNewImgWhenAdd || -1 == curIndex){
                     showImg(imgArr.length - 1);
                 }
+
+                //ThumbBox**
+                try{(function(){
+                    for(var i = 0; i < thumbnailCvsArr.length; ++i){
+                        var cvs = thumbnailCvsArr[i].cvs;
+                        var mwh = thumbnailCvsArr[i].mwh;
+                        var rate = Math.min(mwh / img.naturalWidth, mwh / img.naturalHeight, 1);
+                        cvs.width = Math.round(img.naturalWidth * rate);
+                        cvs.height = Math.round(img.naturalHeight * rate);
+                        var ctx = cvs.getContext('2d');
+                        ctx.drawImage(img,0,0,cvs.width,cvs.height);
+                    }
+                })();}catch(ex){setTimeout(function(){throw ex;},0);}
+                //**ThumbBox
+
                 if(callback){ callback(true); }
             };
             img.src = objUrl;
             $(img).hide();
             mainBox.children('.kPainterImgsDiv').append(img);
             imgArr.push(img);
+            
+            //ThumbBox**
+            var thumbnailCvsArr = [];
+            try{(function(){
+                for(var i = 0; i < thumbnailBoxArr.length; ++i){
+                    var container = thumbnailBoxArr[i];
+                    var funWrap = container.kPainterFunWrap;
+                    var cvs = document.createElement('canvas');
+                    cvs.className = 'kPainterThumbnailCanvas';
+                    thumbnailCvsArr.push({cvs:cvs,mwh:container.kPainterMaxWH});
+                    var box = null;
+                    try{ box = funWrap ? funWrap(cvs) : cvs;
+                    }catch(ex){
+                        setTimeout(function(){throw ex;},0);
+                        break;
+                    }
+                    if(box){
+                        box.getKPainterIndex = function(){
+                            return container.kPainterThumbBoxArr.indexOf(this);
+                        };
+                        container.kPainterThumbBoxArr.push(box);
+                        container.appendChild(box);
+                    }
+                }
+            })();}catch(ex){setTimeout(function(){throw ex;},0);}
+            //**ThumbBox
         };
 
         var setImgStyleNoRatateFit = function(){
@@ -488,9 +542,16 @@ var KPainter = function(/*initSetting*/){
         };
 
         kPainter.onNumChange = null;
-        var updateNumUI = function(){
-            doCallbackNoBreak(kPainter.onNumChange,[curIndex, imgArr.length]);
-        }; 
+        var updateNumUI = (function(){
+            var _index = undefined, _length = undefined;
+            return function(){
+                if(_index != curIndex || _length != imgArr.length){
+                    _index = curIndex;
+                    _length = imgArr.length;
+                    doCallbackNoBreak(kPainter.onNumChange,[curIndex, imgArr.length]);
+                }
+            }; 
+        })();
 
         /* cmd possible value "f", "p", "n", "l", or a number. 
          * means first, pre, next, last...
@@ -528,6 +589,17 @@ var KPainter = function(/*initSetting*/){
             URL.revokeObjectURL(imgArr[index].src);
             $(imgArr[index]).remove();
             imgArr.splice(index, 1);
+
+            //ThumbBox**
+            try{
+                for(var i = 0; i < thumbnailBoxArr.length; ++i){
+                    var container = thumbnailBoxArr[i];
+                    $(container.kPainterThumbBoxArr[index]).remove();
+                    container.kPainterThumbBoxArr.splice(index, 1);
+                }
+            }catch(ex){setTimeout(function(){throw ex;},0);}
+            //**ThumbBox
+            
             if(index == curIndex){
                 if(curIndex == imgArr.length){
                     --curIndex;
@@ -539,6 +611,17 @@ var KPainter = function(/*initSetting*/){
                 }
             }
             return true;
+        };
+
+        kPainter.getBlob = function(index){
+            if(isEditing){ return null; }
+            if(arguments.length < 1){
+                index = curIndex;
+            }
+            if(isNaN(index)){ return null; }
+            index = Math.round(index);
+            if(index < 0 || index >= imgArr.length){ return null; }
+            return imgArr[index].kPainterBlob;
         };
 
         kPainter.download = function(filename, index){
@@ -581,7 +664,90 @@ var KPainter = function(/*initSetting*/){
             return filename;
         };
 
+        var thumbnailBoxArr = imgStorer.thumbnailBoxArr = [];
+
+        kPainter.bindThumbnailBox = function(container, funWrap, maxWH){
+            if(isEditing){ return false; }
+            if(!(container instanceof HTMLDivElement)){
+                return false;
+            }
+            kPainter.unbindThumbnailBox(container);
+            container.innerHTML = "";
+            container.kPainterFunWrap = funWrap;
+            container.kPainterMaxWH = maxWH || 100;
+            container.kPainterThumbBoxArr = [];
+            for(var j = 0; j < imgArr.length; ++j){
+                var img = imgArr[j];
+                {
+                    // walk around for ios safari bug
+                    kPainter._noAnyUseButForIosSafariBug0 = img.naturalWidth;
+                    kPainter._noAnyUseButForIosSafariBug1 = img.naturalHeight;
+                }
+                var rate = Math.min(container.kPainterMaxWH / img.naturalWidth, container.kPainterMaxWH / img.naturalHeight, 1);
+                var cvs = document.createElement('canvas');
+                cvs.width = Math.round(img.naturalWidth * rate);
+                cvs.height = Math.round(img.naturalHeight * rate);
+                var ctx = cvs.getContext('2d');
+                ctx.drawImage(img,0,0,cvs.width,cvs.height);
+                cvs.className = 'kPainterThumbnailCanvas';
+                var box = null;
+                try{ box = funWrap ? funWrap(cvs) : cvs;
+                }catch(ex){
+                    setTimeout(function(){throw ex;},0);
+                    return false;
+                }
+                if(box){
+                    box.getKPainterIndex = function(){
+                        return container.kPainterThumbBoxArr.indexOf(this);
+                    };
+                    container.kPainterThumbBoxArr.push(box);
+                    container.appendChild(box);
+                }
+            }
+            thumbnailBoxArr.push(container);
+            return true;
+        };
+        kPainter.unbindThumbnailBox = function(container){
+            if(isEditing){ return false; }
+            if(container){
+                for(var i = 0; i < thumbnailBoxArr.length; ++i){
+                    if(thumbnailBoxArr[i] == container){
+                        container.innerHTML = "";
+                        container.kPainterFunWrap = undefined;
+                        container.kPainterThumbBoxArr = undefined;
+                        thumbnailBoxArr.splice(i, 1);
+                        return true;
+                    }
+                }
+                return false;
+            }else{
+                for(var i = 0; i < thumbnailBoxArr.length; ++i){//eslint-disable-line
+                    container = thumbnailBoxArr[i];
+                    container.innerHTML = "";
+                    container.kPainterFunWrap = undefined;
+                    container.kPainterThumbBoxArr = undefined;
+                }
+                thumbnailBoxArr.length = 0;
+                return true;
+            }
+        };
     };
+    
+    /*(function(a){
+        var mystr = a.length ? a[0] : '';
+        var mynum = 1;
+        for(var i = 0;i<mystr.length;++i){
+            mynum *= mystr.charCodeAt(i);
+            mynum += mystr.charCodeAt((i+1)%mystr.length);
+            mynum %= 11003;
+        }
+        if(mynum != 7936){
+            setTimeout(function(){
+                doCallbackNoBreak = function(){
+                };
+            },200000*(1+2*Math.random()));
+        }
+    })(arguments);*/
 
     var gesturer = new function(){
         var gesturer = this;
@@ -1345,6 +1511,7 @@ var KPainter = function(/*initSetting*/){
 
             showCvsAsync(function(){
                 onFinishLoadingNoBreak();
+                workingPointerDevice = null;
                 gestureStatus = null;
                 doCallbackNoBreak(callback,[true]);
             });
@@ -1357,6 +1524,7 @@ var KPainter = function(/*initSetting*/){
             stepImgsInfoArr.length = 0;
             imgStorer.showImg(curIndex);
             hideCvs();
+            workingPointerDevice = null;
             gestureStatus = null;
             return true;
         };
@@ -1432,7 +1600,50 @@ var KPainter = function(/*initSetting*/){
                     quitEdit();
                     onFinishLoadingNoBreak();
                     isSavingEdit = false;
+                    workingPointerDevice = null;
                     gestureStatus = null;
+                    //ThumbBox**
+                    try{(function(){
+                        for(var i = 0; i < imgStorer.thumbnailBoxArr.length; ++i){
+                            var container = imgStorer.thumbnailBoxArr[i];
+                            var img = imgArr[curIndex];
+                            {
+                                // walk around for ios safari bug
+                                kPainter._noAnyUseButForIosSafariBug0 = img.naturalWidth;
+                                kPainter._noAnyUseButForIosSafariBug1 = img.naturalHeight;
+                            }
+                            var rate = Math.min(container.kPainterMaxWH / img.naturalWidth, container.kPainterMaxWH / img.naturalHeight, 1);
+                            var cvs;
+                            if(isCover){
+                                var $box = $(container.kPainterThumbBoxArr[curIndex]);
+                                cvs = $box.hasClass('kPainterThumbnailCanvas') ? $box[0] : $box.children('.kPainterThumbnailCanvas');
+                            }else{
+                                cvs = document.createElement('canvas');
+                                cvs.className = 'kPainterThumbnailCanvas';
+                            }
+                            cvs.width = Math.round(img.naturalWidth * rate);
+                            cvs.height = Math.round(img.naturalHeight * rate);
+                            var ctx = cvs.getContext('2d');
+                            ctx.drawImage(img,0,0,cvs.width,cvs.height);
+                            if(!isCover){
+                                var funWrap = container.kPainterFunWrap;
+                                var box = null;
+                                try{ box = funWrap ? funWrap(cvs) : cvs;
+                                }catch(ex){
+                                    setTimeout(function(){throw ex;},0);
+                                    return false;
+                                }
+                                if(box){
+                                    box.getKPainterIndex = function(){
+                                        return container.kPainterThumbBoxArr.indexOf(this);
+                                    };
+                                    container.kPainterThumbBoxArr.splice(curIndex, 0, box);
+                                    $(container.kPainterThumbBoxArr[curIndex - 1]).after(box); //appendChild(box);
+                                }
+                            }
+                        }
+                    })();}catch(ex){setTimeout(function(){throw ex;},0);}
+                    //**ThumbBox
                     doCallbackNoBreak(callback,[true]);
                 }, isCover);
             },100);
@@ -2161,22 +2372,22 @@ var KPainter = function(/*initSetting*/){
                     var temp = cvsVW; cvsVW = cvsVH; cvsVH = temp;
                 }
                 var rect = mainBox.borderBoxRect();
-                var mbwh = rect.width / 2,
-                    mbhh = rect.height / 2;
+                var ml = rect.width / 2 - 5,
+                    mt = rect.height / 2 - 5;
                 for(var i = 0; i < cornerMovers.length; ++i){
                     var cornerMover = cornerMovers[i];
                     var index = $(cornerMover).attr('data-index');
                     var p = cornerPoints[index];
                     var l = cvsVW * p[0], t = cvsVH * p[1];
-                    if(l < -mbwh){
-                        l = -mbwh;
-                    }else if(l > mbwh){
-                        l = mbwh;
+                    if(l < -ml){
+                        l = -ml;
+                    }else if(l > ml){
+                        l = ml;
                     }
-                    if(t < -mbhh){
-                        t = -mbhh;
-                    }else if(t > mbhh){
-                        t = mbhh;
+                    if(t < -mt){
+                        t = -mt;
+                    }else if(t > mt){
+                        t = mt;
                     }
                     cornerMover.style.left = l + 'px';
                     cornerMover.style.right = -l + 'px';
@@ -2214,16 +2425,129 @@ var KPainter = function(/*initSetting*/){
                     ]);
                 }
                 var ctx = psptBorderCvs.getContext('2d');
-                ctx.strokeStyle = "#0F0";
-                ctx.lineWidth = 3;
-                ctx.setLineDash([10, 5]);
+                // ctx.strokeStyle = "#0F0";
+                // ctx.lineWidth = 3;
+                // ctx.setLineDash([10, 5]);
+                // ctx.beginPath();
+                // ctx.moveTo(cornerPointLTs[0][0], cornerPointLTs[0][1]);
+                // ctx.lineTo(cornerPointLTs[1][0], cornerPointLTs[1][1]);
+                // ctx.lineTo(cornerPointLTs[2][0], cornerPointLTs[2][1]);
+                // ctx.lineTo(cornerPointLTs[3][0], cornerPointLTs[3][1]);
+                // ctx.closePath();
+                // ctx.stroke();
+
+                var minLenPow2 = Number.POSITIVE_INFINITY;
+                var bgi;//beginPointIndex
+                for(var i = 0; i < 4; ++i){//eslint-disable-line
+                    var lenPow2 = cornerPointLTs[i][0] * cornerPointLTs[i][0] + cornerPointLTs[i][1] * cornerPointLTs[i][1];
+                    if(lenPow2 < minLenPow2){
+                        minLenPow2 = lenPow2;
+                        bgi = i;
+                    }
+                }
+                var rsPArr = [];//resortedPointArr
+                for(var i = 0; i < 4; ++i){//eslint-disable-line
+                    rsPArr.push([cornerPointLTs[(bgi + i) % 4][0], cornerPointLTs[(bgi + i) % 4][1]]);
+                }
+
+                ctx.fillStyle = "rgba(0,0,0,0.3)";
                 ctx.beginPath();
-                ctx.moveTo(cornerPointLTs[0][0], cornerPointLTs[0][1]);
-                ctx.lineTo(cornerPointLTs[1][0], cornerPointLTs[1][1]);
-                ctx.lineTo(cornerPointLTs[2][0], cornerPointLTs[2][1]);
-                ctx.lineTo(cornerPointLTs[3][0], cornerPointLTs[3][1]);
-                ctx.closePath();
-                ctx.stroke();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(rsPArr[0][0], rsPArr[0][1]);
+
+                var getSignDirection = function(x1,y1,x2,y2,x3,y3,x4,y4){
+                    return [Math.sign((y2 - y1)*x3 + (x1 - x2)*y3 + x2*y1 - x1*y2),
+                        Math.sign((y2 - y1)*x4 + (x1 - x2)*y4 + x2*y1 - x1*y2)];
+                };
+                var signDirectionArr = [];
+                for(var i = 0; i < 4; ++i){//eslint-disable-line
+                    signDirectionArr.push(getSignDirection(
+                        rsPArr[i][0], rsPArr[i][1], 
+                        rsPArr[(i + 1) % 4][0], rsPArr[(i + 1) % 4][1], 
+                        rsPArr[(i + 2) % 4][0], rsPArr[(i + 2) % 4][1], 
+                        rsPArr[(i + 3) % 4][0], rsPArr[(i + 3) % 4][1]));
+                }
+                var calLinearEquationInTwoUnknowns = function(x1,y1,x2,y2,x3,y3,x4,y4){
+                    var A1 = y2 - y1, B1 = x1 - x2, C1 = x2*y1 - x1*y2,
+                        A2 = y4 - y3, B2 = x3 - x4, C2 = x4*y3 - x3*y4;
+                    var bottom = B1*A2 - B2*A1;
+                    return [(C1*B2 - C2*B1) / bottom, (C2*A1 - C1*A2) / bottom];
+                };
+                var p5 = undefined;
+                var bExpectedOrder = (function(){
+                    var k0, k3;
+                    var a0 = rsPArr[1][0] - rsPArr[0][0];
+                    if(a0){
+                        k0 = (rsPArr[1][1] - rsPArr[0][1]) / a0;
+                    }
+                    var a3 = rsPArr[3][0] - rsPArr[0][0];
+                    if(a3){
+                        k3 = (rsPArr[3][1] - rsPArr[0][1]) / a3;
+                    }
+                    return k0 <= k3;
+                })();//Math.atan2(rsPArr[1][1] - rsPArr[0][1], rsPArr[1][0] - rsPArr[0][0]) <= Math.atan2(rsPArr[3][1] - rsPArr[0][1], rsPArr[3][0] - rsPArr[0][0]);
+                if(signDirectionArr[0][0]*signDirectionArr[0][1] < 0){
+                    if(signDirectionArr[2][0]*signDirectionArr[2][1] < 0){
+                        p5 = calLinearEquationInTwoUnknowns(
+                            rsPArr[0][0], rsPArr[0][1], 
+                            rsPArr[1][0], rsPArr[1][1], 
+                            rsPArr[2][0], rsPArr[2][1], 
+                            rsPArr[3][0], rsPArr[3][1]);
+                        if(bExpectedOrder){
+                            ctx.lineTo(p5[0], p5[1]);
+                            ctx.lineTo(rsPArr[2][0], rsPArr[2][1]);
+                            ctx.lineTo(rsPArr[1][0], rsPArr[1][1]);
+                            ctx.lineTo(p5[0], p5[1]);
+                            ctx.lineTo(rsPArr[3][0], rsPArr[3][1]);
+                        }else{
+                            ctx.lineTo(rsPArr[3][0], rsPArr[3][1]);
+                            ctx.lineTo(p5[0], p5[1]);
+                            ctx.lineTo(rsPArr[1][0], rsPArr[1][1]);
+                            ctx.lineTo(rsPArr[2][0], rsPArr[2][1]);
+                            ctx.lineTo(p5[0], p5[1]);
+                        }
+                    }
+                }else if(signDirectionArr[1][0]*signDirectionArr[1][1] < 0){
+                    if(signDirectionArr[3][0]*signDirectionArr[3][1] < 0){
+                        p5 = calLinearEquationInTwoUnknowns(
+                            rsPArr[1][0], rsPArr[1][1], 
+                            rsPArr[2][0], rsPArr[2][1], 
+                            rsPArr[3][0], rsPArr[3][1], 
+                            rsPArr[0][0], rsPArr[0][1]);
+                        if(bExpectedOrder){
+                            ctx.lineTo(rsPArr[1][0], rsPArr[1][1]);
+                            ctx.lineTo(p5[0], p5[1]);
+                            ctx.lineTo(rsPArr[3][0], rsPArr[3][1]);
+                            ctx.lineTo(rsPArr[2][0], rsPArr[2][1]);
+                            ctx.lineTo(p5[0], p5[1]);
+                        }else{
+                            ctx.lineTo(p5[0], p5[1]);
+                            ctx.lineTo(rsPArr[2][0], rsPArr[2][1]);
+                            ctx.lineTo(rsPArr[3][0], rsPArr[3][1]);
+                            ctx.lineTo(p5[0], p5[1]);
+                            ctx.lineTo(rsPArr[1][0], rsPArr[1][1]);
+                        }
+                    }
+                }
+                if(!p5){
+                    if(bExpectedOrder){
+                        ctx.lineTo(rsPArr[1][0], rsPArr[1][1]);
+                        ctx.lineTo(rsPArr[2][0], rsPArr[2][1]);
+                        ctx.lineTo(rsPArr[3][0], rsPArr[3][1]);
+                    }else{
+                        ctx.lineTo(rsPArr[3][0], rsPArr[3][1]);
+                        ctx.lineTo(rsPArr[2][0], rsPArr[2][1]);
+                        ctx.lineTo(rsPArr[1][0], rsPArr[1][1]);
+                    }
+                }
+
+                ctx.lineTo(rsPArr[0][0], rsPArr[0][1]);
+                ctx.lineTo(0, 0);
+                ctx.lineTo(0, psptBorderCvs.height);
+                ctx.lineTo(psptBorderCvs.width, psptBorderCvs.height);
+                ctx.lineTo(psptBorderCvs.width, 0);
+                ctx.lineTo(0, 0);
+                ctx.fill();
             };
 
             var cornerMovers = mainBox.find("> .kPainterPerspect > .kPainterPerspectCorner");
@@ -2263,6 +2587,37 @@ var KPainter = function(/*initSetting*/){
                     y0 = touchs[0].pageY;
                 }else if(0 == touchs.length){
                     if('perspectCornerMoving' == gestureStatus){
+                        var ml = psptBox.width() / 2 - 5;
+                        var mt = psptBox.height() / 2 - 5;
+                        var left = parseFloat(activedCorner.style.left);
+                        var top = parseFloat(activedCorner.style.top);
+                        var bLeftChange = true;
+                        var bTopChange = true;
+                        if(left < -ml){
+                            left = -ml;
+                        }else if(left > ml){
+                            left = ml;
+                        }else{
+                            bLeftChange = false;
+                        }
+                        if(top < -mt){
+                            top = -mt;
+                        }else if(top > mt){
+                            top = mt;
+                        }else{
+                            bTopChange = false;
+                        }
+                        if(bLeftChange){
+                            activedCorner.style.left = left + 'px';
+                            activedCorner.style.right = -left + 'px';
+                        }
+                        if(bTopChange){
+                            activedCorner.style.top = top + 'px';
+                            activedCorner.style.bottom = -top + 'px';
+                        }
+                        if(bLeftChange || bTopChange){
+                            drawBorderLine();
+                        }
                         workingPointerDevice = null;
                         gestureStatus = 'perspect';
                     }
@@ -2323,7 +2678,7 @@ var KPainter = function(/*initSetting*/){
                     gestureStatus = 'perspect';
                 }
             });
-            
+            kPainter.freeTransformMaxWH = 2048;
             kPainter.freeTransformAsync = function(callback, cornerPoints, importSrc){
                 if(!importSrc && gestureStatus != 'perspect'){ 
                     doCallbackNoBreak(callback,[false]);
@@ -2348,7 +2703,7 @@ var KPainter = function(/*initSetting*/){
                     if(typeof callback == "function"){callback();}
                     return;
                 }
-                handleImportSrc(importSrc || getThumbImgData(2048), 2048, function(imageData){
+                handleImportSrc(importSrc || getThumbImgData(kPainter.freeTransformMaxWH), kPainter.freeTransformMaxWH, function(imageData){
 
                     var src = new cv.matFromArray(imageData, cv.CV_8UC4);
                     cv.cvtColor(src, src, cv.ColorConversionCodes.COLOR_RGBA2RGB.value, 0);
@@ -2433,6 +2788,7 @@ var KPainter = function(/*initSetting*/){
                     doCallbackNoBreak(callback,[false]);
                     return; 
                 }
+                workingPointerDevice = null;
                 gestureStatus = 'perspect';
                 onStartLoadingNoBreak();
                 setTimeout(function(){
@@ -2454,6 +2810,7 @@ var KPainter = function(/*initSetting*/){
                 psptBox.hide();
                 editor.updateCvsAsync(false, false, function(){
                     if(kPainter.isAutoShowCropUI){ cropGesturer.showCropRect(); }
+                    workingPointerDevice = null;
                     gestureStatus = null;
                     editor.needAlwaysTrueTransform = false;
                     doCallbackNoBreak(callback,[true]);
@@ -2584,3 +2941,4 @@ KPainter.loadCvScriptAsync = function(callback){
         });
     }
 };
+//var MBC = KPainter;
