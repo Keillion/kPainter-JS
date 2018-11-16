@@ -173,7 +173,7 @@ var KPainter = function(initSetting){
         });
 
         kPainter.setHiddenFileIpt = function(inputEl){
-            if(inputEl instanceof inputEl){
+            if(inputEl instanceof HTMLInputElement){
                 hiddenFileIpt = inputEl;
                 return true;
             }else{
@@ -492,7 +492,7 @@ var KPainter = function(initSetting){
         var resizeTimeout = 500;
         var isWaitingResize = false;//eslint-disable-line
         var beforeTimeoutIsEditing;
-        kPainter.updateUIOnResize = function(isLazy){
+        kPainter.updateUIOnResize = function(isLazy, callback){
             if(null != resizeTaskId){
                 clearTimeout(resizeTaskId);
                 resizeTaskId = null;
@@ -506,6 +506,7 @@ var KPainter = function(initSetting){
                         }else{
                             setImgStyleNoRatateFit();
                         }
+                        doCallbackNoBreak(callback);
                     }
                     resizeTaskId = null;
                 }, resizeTimeout);
@@ -516,6 +517,7 @@ var KPainter = function(initSetting){
                     }else{
                         setImgStyleNoRatateFit();
                     }
+                    doCallbackNoBreak(callback);
                 }
             }
         };
@@ -600,7 +602,10 @@ var KPainter = function(initSetting){
             }catch(ex){setTimeout(function(){throw ex;},0);}
             //**ThumbBox
             
-            if(index == curIndex){
+            if(index < curIndex){
+                --curIndex;
+                updateNumUI();
+            }else if(index == curIndex){
                 if(curIndex == imgArr.length){
                     --curIndex;
                 }
@@ -609,6 +614,8 @@ var KPainter = function(initSetting){
                 }else{
                     updateNumUI();
                 }
+            }else{ //index > curIndex
+                updateNumUI();
             }
             return true;
         };
@@ -732,22 +739,6 @@ var KPainter = function(initSetting){
             }
         };
     };
-    
-    /*(function(a){
-        var mystr = a.length ? a[0] : '';
-        var mynum = 1;
-        for(var i = 0;i<mystr.length;++i){
-            mynum *= mystr.charCodeAt(i);
-            mynum += mystr.charCodeAt((i+1)%mystr.length);
-            mynum %= 11003;
-        }
-        if(mynum != 7936){
-            setTimeout(function(){
-                doCallbackNoBreak = function(){
-                };
-            },200000*(1+2*Math.random()));
-        }
-    })(arguments);*/
 
     var gesturer = new function(){
         var gesturer = this;
@@ -2826,7 +2817,7 @@ var KPainter = function(initSetting){
         var video = videoMdlDom.children('.kPainterVideo')[0];
         var btnGrabVideo = videoMdlDom.children('.kPainterBtnGrabVideo');
         var btnCloseVideo = videoMdlDom.children('.kPainterBtnCloseVideo');
-        kPainter.videoSettings = {video:{width:{ideal:2048},height:{ideal:2048},facingMode:{ideal:"environment"}}};
+        kPainter.videoSettings = {video:{/*width:{ideal:2048},height:{ideal:2048},*/facingMode:{ideal:"environment"}}};
         kPainter.showVideo = function(callback, videoSettings){
             navigator.mediaDevices.getUserMedia(videoSettings || kPainter.videoSettings).then(function(stream){
                 video.onloadedmetadata = function(){
@@ -2864,8 +2855,9 @@ var KPainter = function(initSetting){
             }
             videoMdlDom.hide();
         };
+        kPainter.onAddImgFromGrabVideoBtn = null;
         btnGrabVideo.on("click touchstart",function(){
-            kPainter.grabVideo(true);
+            kPainter.grabVideo(true, kPainter.onAddImgFromGrabVideoBtn);
             kPainter.hideVideo();
         });
         btnCloseVideo.on("click touchstart",function(){
