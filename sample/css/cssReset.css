@@ -8,5 +8,5 @@ input[type='checkbox'], input[type='radio'] {vertical-align:text-top;}
 /*util*/
 label._forCkBoxOrRadio{user-select:none;}
 button._slowlyChange{transition:all .2s ease-in-out;}
-/*remove the fuck!!! ads*/
-body > iframe, body > span{opacity:0;display:none;}
+/*remove the fuck!!! ads*/ /*use ssl, so no ads now*/
+/*body > iframe, body > span{opacity:0;display:none;}*/
