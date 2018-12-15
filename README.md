@@ -6,7 +6,7 @@ Copyright (c) 2017 Keillion Wang
 
 All Rights Reserved except that the github user agreement said.
 
-Run sample at https://htmlpreview.github.io/?https://github.com/Keillion/kPainter-JS/blob/master/sample/index.html
+[Sample](https://www.keillion.site/mobileCam/)
 
 | browser | basic | document detect and freeTransform |
 |-|-|-|
