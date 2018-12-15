@@ -1,4 +1,4 @@
-/*global $, kUtil, TaskQueue, EXIF*/
+/*global $, kUtil, TaskQueue, EXIF, kConsoleLog*/
 var KPainter = function(initSetting){
     var kPainter = this;
 
@@ -177,31 +177,34 @@ var KPainter = function(initSetting){
 
         var imgStorer = this;
 
-        var hiddenFileIpt = $('<input type="file" accept="image/bmp,image/gif,image/jpeg,image/png,image/webp" multiple style="display:none">');
-        kPainter.onAddImgFromFileChooseWindow = null;
-        $(hiddenFileIpt).change(function(){
-            for(var i=0; i<this.files.length - 1; ++i){
-                addImageAsync(this.files[i]); // have queued inner, so not recur
-            }
-            addImageAsync(this.files[this.files.length - 1], kPainter.onAddImgFromFileChooseWindow);
-            $(this).val('');
-        });
-
-        kPainter.setHiddenFileIpt = function(inputEl){
-            if(inputEl instanceof HTMLInputElement){
-                hiddenFileIpt = inputEl;
-                return true;
+        kPainter.defaultFileInput = $('<input type="file" accept="image/bmp,image/gif,image/jpeg,image/png,image/webp" multiple style="display:none">')[0];
+        kPainter.beforeAddImgFromFileChooseWindow = null;
+        kPainter.afterAddImgFromFileChooseWindow = null;
+        $(kPainter.defaultFileInput).change(function(jqEvent){
+            var ipt = this;
+            var oEvent = jqEvent.originalEvent;
+            if(kPainter.beforeAddImgFromDropFile){
+                doCallbackNoBreak(kPainter.beforeAddImgFromDropFile, [oEvent, function(file){
+                    addImageAsync(file, function(bSuccess){
+                        doCallbackNoBreak(kPainter.afterAddImgFromFileChooseWindow,[bSuccess]);
+                        ipt.value = '';
+                    });
+                }]);
             }else{
-                return false;
+                addImageAsync(ipt.files, function(bSuccess){
+                    doCallbackNoBreak(kPainter.afterAddImgFromFileChooseWindow,[bSuccess]);
+                    ipt.value = '';
+                });
             }
-        };
+        });
         kPainter.showFileChooseWindow = function(){
-            if(isEditing){ return null; }
-            hiddenFileIpt.click();
-            return hiddenFileIpt;
+            if(isEditing){ return false; }
+            kPainter.defaultFileInput.click();
+            return true;
         };
         
-        kPainter.onAddImgFromDropFile = null;
+        kPainter.beforeAddImgFromDropFile = null;
+        kPainter.afterAddImgFromDropFile = null;
         mainBox.on('dragover', function(jqEvent){
             var oEvent = jqEvent.originalEvent;
             oEvent.stopPropagation();
@@ -211,11 +214,14 @@ var KPainter = function(initSetting){
             var oEvent = jqEvent.originalEvent;
             oEvent.stopPropagation();
             oEvent.preventDefault();
-            var files = oEvent.dataTransfer.files;
-            for(var i = 0; i < files.length - 1; ++i){
-                addImageAsync(files[i]);
+            if(kPainter.beforeAddImgFromDropFile){
+                doCallbackNoBreak(kPainter.beforeAddImgFromDropFile, [oEvent, function(file){
+                    addImageAsync(file, kPainter.afterAddImgFromDropFile);
+                }]);
+            }else{
+                var files = oEvent.dataTransfer.files;
+                addImageAsync(files, kPainter.afterAddImgFromDropFile);
             }
-            addImageAsync(files[files.length - 1], kPainter.onAddImgFromDropFile);
         });
 
         var loadImgTaskQueue = new TaskQueue();
@@ -232,6 +238,19 @@ var KPainter = function(initSetting){
             }else if(imgData instanceof HTMLCanvasElement){//
             }else if(typeof imgData == "string" || imgData instanceof String){//
             }else if(imgData instanceof HTMLImageElement){//
+            }else if(imgData instanceof Array || imgData instanceof FileList){
+                var bSuccessArr = [];
+                var hasOneSuccess = false;
+                for(var i = 0; i < imgData.length; ++i){
+                    addImageAsync(imgData[i], function(bSuccess){
+                        bSuccessArr.push(bSuccess);
+                        hasOneSuccess = hasOneSuccess || bSuccess;
+                        if(bSuccessArr.length == imgData.length){
+                            doCallbackNoBreak(callback, [hasOneSuccess, bSuccessArr]);
+                        }
+                    }); // have queued inner, so not recur
+                }
+                return;
             }else{
                 doCallbackNoBreak(callback,[false]);
                 return;
@@ -529,6 +548,7 @@ var KPainter = function(initSetting){
                 nImg.style.left = absoluteCenterDistance+"px";
                 nImg.style.right = nImg.style.top = pImg.style.bottom = -absoluteCenterDistance+"px";
             }
+            doCallbackNoBreak(kPainter.onUpdateImgPosZoom);
         };
 
         var resizeTaskId = null;
@@ -545,7 +565,9 @@ var KPainter = function(initSetting){
                 resizeTaskId = setTimeout(function(){
                     if(curIndex != -1 && beforeTimeoutIsEditing == isEditing){
                         if(isEditing){
+                            var ftPos = kPainter.getFreeTransformCornerPos();
                             gesturer.setImgStyleFit();
+                            kPainter.setFreeTransformCornerPos(ftPos);
                         }else{
                             setImgStyleNoRatateFit();
                         }
@@ -556,7 +578,9 @@ var KPainter = function(initSetting){
             }else{
                 if(curIndex != -1){
                     if(isEditing){
+                        var ftPos = kPainter.getFreeTransformCornerPos();
                         gesturer.setImgStyleFit();
+                        kPainter.setFreeTransformCornerPos(ftPos);
                     }else{
                         setImgStyleNoRatateFit();
                     }
@@ -1181,20 +1205,31 @@ var KPainter = function(initSetting){
         var stepImgsInfoArr = [];
         var stepProtectedArr = [];
         kPainter.addProtectedStep = function(index){
+            if(!isEditing){
+                return false;
+            }
             index = parseInt(index);
-            if(index !== index){return;}//NaN
-            if(stepProtectedArr.indexOf(index) != -1){return;}//exist
+            if(index !== index){return false;}//NaN
+            if(stepProtectedArr.indexOf(index) != -1){return true;}//exist
             stepProtectedArr.push(index);
             stepProtectedArr.sort(function(x,y){return x-y;});
+            return true;
         };
         kPainter.removeProtectedStep = function(index){
+            if(!isEditing){
+                return false;
+            }
             index = parseInt(index);
-            if(index !== index){return;}//NaN
+            if(index !== index){return false;}//NaN
             var pos = stepProtectedArr.indexOf(index);
-            if(pos == -1){return;}//not exist
+            if(pos == -1){return false;}//not exist
             stepProtectedArr.splice(pos, 1);
+            return true;
         };
         kPainter.getProtectedSteps = function(){
+            if(!isEditing){
+                return null;
+            }
             return stepProtectedArr.concat();
         };
 
@@ -1359,9 +1394,15 @@ var KPainter = function(initSetting){
             }
         };
         kPainter.getStepCount = function(){
+            if(!isEditing){
+                return NaN;
+            }
             return stack.length;
         };
         kPainter.getCurStep = function(){
+            if(!isEditing){
+                return NaN;
+            }
             return curStep;
         };
         kPainter.setCurStepAsync = function(index, callback){
@@ -1841,7 +1882,7 @@ var KPainter = function(initSetting){
 
         kPainter.setCropRectStyle = function(styleNo){
             /*eslint-disable indent*/
-            switch(styleNo){
+            switch(parseInt(styleNo)){
                 case 0: {
                     kPainterCroper.find('>.kPainterBigMover').hide();
                     kPainterCroper.find('>.kPainterMover').show();
@@ -2484,6 +2525,7 @@ var KPainter = function(initSetting){
                 psptBox.hide();
             };
             var psptBorderCvs = mainBox.find("> .kPainterPerspect > .kPainterPerspectCvs")[0];
+            kPainter.onFreeTransformCornerPosChange = null;
             var setCornerPos = kPainter.setFreeTransformCornerPos = function(cornerPoints){
                 if(gestureStatus != 'perspect'){ return; }
                 var cvsZoom = mainCvs.kPainterZoom,
@@ -2692,6 +2734,8 @@ var KPainter = function(initSetting){
                 ctx.lineTo(psptBorderCvs.width, 0);
                 ctx.lineTo(0, 0);
                 ctx.fill();
+                
+                doCallbackNoBreak(kPainter.onFreeTransformCornerPosChange);
             };
 
             var cornerMovers = mainBox.find("> .kPainterPerspect > .kPainterPerspectCorner");
@@ -3011,11 +3055,20 @@ var KPainter = function(initSetting){
                 tracks[i].stop();
             }
             videoMdlDom.hide();
+            return true;
         };
-        kPainter.onAddImgFromGrabVideoBtn = null;
+        kPainter.beforeAddImgFromGrabVideoBtn = null;
+        kPainter.afterAddImgFromGrabVideoBtn = null;
         btnGrabVideo.on("click touchstart",function(){
-            kPainter.grabVideo(true, kPainter.onAddImgFromGrabVideoBtn);
-            kPainter.hideVideo();
+            if(kPainter.beforeAddImgFromGrabVideoBtn){
+                var canvas = kPainter.grabVideo();
+                doCallbackNoBreak(kPainter.beforeAddImgFromGrabVideoBtn, [canvas, function(newCanvas){
+                    kPainter.addImageAsync(newCanvas, kPainter.afterAddImgFromGrabVideoBtn);
+                }]);
+            }else{
+                kPainter.grabVideo(true, kPainter.afterAddImgFromGrabVideoBtn);
+                kPainter.hideVideo();
+            }
         });
         btnCloseVideo.on("click touchstart",function(){
             kPainter.hideVideo();
@@ -3044,54 +3097,47 @@ KPainter.loadCvScriptAsync = function(callback){
             isRuntimeInitialized: false,
             onRuntimeInitialized: function() {
                 KPainter.cvHasLoaded = true;
-                console.log("Runtime is ready!");
+                if(kConsoleLog)kConsoleLog("Runtime is ready!");
                 KPainter._doCallbackNoBreak(callback,[true]);
                 callback = null;
+                KPainter._loadCvQueue.next();
             },
             onExit: function(){
                 KPainter._doCallbackNoBreak(callback,[false]);
                 callback = null;
+                KPainter._loadCvQueue.next();
             },
             onAbort: function(){
                 KPainter._doCallbackNoBreak(callback,[false]);
                 callback = null;
+                KPainter._loadCvQueue.next();
             },
             print: function(text) {
-            console.log(text);
+                if(kConsoleLog)kConsoleLog(text);
             },
             printErr: function(text) {
-            console.log(text);
+                if(kConsoleLog)kConsoleLog(text);
             },
             setStatus: function(text) {
-            console.log(text);
+                if(kConsoleLog)kConsoleLog(text);
             },
             totalDependencies: 0
         };
         KPainter._CVModule.setStatus('Downloading...');
+        var script = document.createElement('script');
         if(window.WebAssembly){
             //webassembly
-            $.ajax({
-                type: "GET",
-                url: KPainter.cvFolder+"/cv-wasm.js?v=20180921",
-                dataType: "script",
-                cache: true,
-                onerror:function(){
-                    KPainter._doCallbackNoBreak(callback,[false]);
-                }
-            });
+            script.src = KPainter.cvFolder+"/cv-wasm.js?v=20180921";
         }else{
             //asm js
-            $.ajax({
-                type: "GET",
-                url: KPainter.cvFolder+"/cv.js?v=201800921",
-                dataType: "script",
-                cache: true,
-                onerror:function(){
-                    KPainter._doCallbackNoBreak(callback,[false]);
-                }
-            });
+            script.src = KPainter.cvFolder+"/cv.js?v=201800921";
         }
+        script.onerror = function(){
+            KPainter._doCallbackNoBreak(callback,[false]);
+            KPainter._loadCvQueue.next();
+        };
+        document.body.appendChild(script);
     };
     KPainter._loadCvQueue.push(loadCvInner);
 };
-//var MBC = KPainter;
+var MBC = KPainter;

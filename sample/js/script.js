@@ -1,3 +1,5 @@
+/*global $, KPainter, TaskQueue, Tiff, pdfjsLib, kUtil*/
+/*eslint-disable no-console*/
 var isMobileSafari = (/iPhone/i.test(navigator.platform) || /iPod/i.test(navigator.platform) || /iPad/i.test(navigator.userAgent)) && !!navigator.appVersion.match(/(?:Version\/)([\w\._]+)/); 
 if(isMobileSafari){
     /* In safari at ios, 
@@ -13,10 +15,9 @@ $("#imgShowMdl").on("touchmove", function(ev){
     ev.stopPropagation();
 });
 
-KPainter.cvFolder = '../js';
 var painter = new KPainter();
-painter.onStartLoading = function(){ $("#grayFog").show(); },
-painter.onFinishLoading = function(){ $("#grayFog").hide(); }
+painter.onStartLoading = function(){ $("#grayFog").show(); };
+painter.onFinishLoading = function(){ $("#grayFog").hide(); };
 painter.onNumChange = function(curIndex, length){
     $("#pageNum").html((curIndex+1)+"/"+length);
 };
@@ -28,6 +29,179 @@ $("#imgShowMdl").append(painterDOM);
 $(window).resize(function(){
     painter.updateUIOnResize(true);
 });
+
+painter.defaultFileInput.accept += ',image/tiff,application/pdf';
+
+var getCvsFromTif = function(blob, callback){
+    return new Promise(function(resolve, reject){
+        if(self.Tiff){
+            resolve();
+        }else{
+            console.log('loading tiff component...');
+            var script = document.createElement('script');
+            script.src = 'js/tiff.min.js';
+            self.onTiffJsLoadSuccess = function(){
+                //initialize with 100MB for large files
+                Tiff.initialize({
+                    TOTAL_MEMORY: 100000000
+                });
+                resolve();
+            };
+            script.onerror = function(ex){
+                //tudo test it
+                reject(script.error || ex || 'load tiff js fail');
+            };
+            document.body.appendChild(script);
+        }
+    }).then(function(){
+        console.log('parsing the tiff...');
+        return new Promise(function(resolve, reject){
+            var fr = new FileReader();
+            fr.onload = function(){
+                resolve(fr.result);
+            };
+            fr.onerror = function(){
+                reject(fr.error);
+            };
+            fr.readAsArrayBuffer(blob);
+        });
+    }).then(function(arrayBuffer){
+        var tiff = new Tiff({
+            buffer: arrayBuffer
+        });
+        var taskQueue = new TaskQueue();
+        for (var j = 0, len = tiff.countDirectory(); j < len; ++j) {
+            taskQueue.push(function(j){
+                tiff.setDirectory(j);
+                callback(tiff.toCanvas(), function(){
+                    taskQueue.next();
+                });
+            },null,[j]);
+        }
+        return new Promise(function(resolve){
+            taskQueue.push(function(){
+                resolve();
+            });
+        });
+    });
+};
+
+var getCvsFromPdf = function(blob, callback){
+    return new Promise(function(resolve, reject){
+        if(self.pdfjsLib){
+            resolve();
+        }else{
+            console.log('loading pdf component...');
+            var script = document.createElement('script');
+            script.src = 'js/pdf.js';
+            self.onPdfJsLoadSuccess = function(){
+                self.pdfjsLib = window['pdfjs-dist/build/pdf'];
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'js/pdf.worker.js';
+                resolve();
+            };
+            script.onerror = function(ex){
+                //tudo test it
+                reject(script.error || ex || 'load pdf js fail');
+            };
+            document.body.appendChild(script);
+        }
+    }).then(function(){
+        console.log('parsing the pdf...');
+        return new Promise(function(resolve, reject){
+            var fr = new FileReader();
+            fr.onload = function(){
+                resolve(fr.result);
+            };
+            fr.onerror = function(){
+                reject(fr.error);
+            };
+            fr.readAsArrayBuffer(blob);
+        });
+    }).then(function(arrayBuffer){
+        return pdfjsLib.getDocument(arrayBuffer);
+    }).then(function(pdf){
+        var taskQueue = new TaskQueue();
+        for(var i = 0; i < pdf.numPages; ++i){
+            taskQueue.push(function(i){
+                //pdfjs is 1 base >_<
+                var cvs = null;
+                pdf.getPage(i+1).then(function(page){
+                    var viewport = page.getViewport(1);
+                    cvs = document.createElement('canvas');
+                    cvs.width = viewport.width;
+                    cvs.height = viewport.height;
+
+                    var ctx = cvs.getContext('2d');
+                    return page.render({
+                        canvasContext: ctx,
+                        viewport: viewport
+                    });
+                }).then(function(){
+                    callback(cvs, function(){
+                        taskQueue.next();
+                    });
+                }).catch(function(ex){
+                    console.error(ex);
+                    taskQueue.next();
+                });
+            }, null, [i]);
+        }
+        return new Promise(function(resolve){
+            taskQueue.push(function(){
+                resolve();
+            });
+        });
+    });
+};
+
+var addImageFromUrlWithPdfTiffAsync = painter.beforeAddImgFromFileChooseWindow = painter.beforeAddImgFromDropFile = function(src, callback){
+    var taskQueue = new TaskQueue();
+    var files = null;
+    if(typeof src == "string" || src instanceof String){
+        // url
+        files = ['placeholder'];
+        taskQueue.push(function(){
+            kUtil.convertURLToBlob(src, function(blob){
+                files = [blob];
+                taskQueue.next();
+            });
+        });
+    }else{
+        // input || drop 
+        files = src.target.files || src.dataTransfer.files;
+    }
+    for(var i = 0; i < files.length; ++i){
+        taskQueue.push(function(i){
+            var file = files[i];
+            if('image/tiff' == file.type){
+                getCvsFromTif(file, painter.addImageAsync).then(function(){
+                    taskQueue.next();
+                }).catch(function(ex){
+                    console.error(ex);
+                    taskQueue.next();
+                });
+            }else if('application/pdf' == file.type){
+                getCvsFromPdf(file, painter.addImageAsync).then(function(){
+                    taskQueue.next();
+                }).catch(function(ex){
+                    console.error(ex);
+                    taskQueue.next();
+                });
+            }else{
+                painter.addImageAsync(file, function(){
+                    taskQueue.next();
+                });
+            }
+        }, null, [i]);
+    }
+    // callback
+    if(callback){
+        taskQueue.push(function(){
+            callback();
+        });
+    }
+};
+
 painter.bindThumbnailBox(document.getElementById('div-thumbnailContainer'), function(cvs){
     var box = document.createElement('div');
     box.className = 'div-thumbnailBox';
@@ -39,6 +213,7 @@ painter.bindThumbnailBox(document.getElementById('div-thumbnailContainer'), func
     box.appendChild(fog);
     return box;
 });
+
 $('#ipt-deleteMode').change(function(){
     if($(this).prop('checked')){
         $('#thumbnailMdl').addClass('inDeleteMode');
@@ -47,30 +222,13 @@ $('#ipt-deleteMode').change(function(){
     }
 });
 $('#div-thumbnailContainer').on('click', '.div-thumbnailBox', function(){
-	var idx = this.getKPainterIndex();
-	if($('#ipt-deleteMode').prop('checked')){
-		painter.del(idx);
-	}else{
-		painter.changePage(idx);
-		$('#thumbnailMdl').hide();
-	}
-});
-
-
-//debug
-var sampleImgs = $('.sampleImg');
-for(var i=0; i<sampleImgs.length; ++i){
-    var sampleImg = sampleImgs[i];
-    if(sampleImg.complete){
-        painter.addImageAsync(sampleImg);
+    var idx = this.getKPainterIndex();
+    if($('#ipt-deleteMode').prop('checked')){
+        painter.del(idx);
     }else{
-        (function(sampleImg){
-            sampleImg.onload = function(){
-                sampleImg.onload = null;
-                painter.addImageAsync(sampleImg);
-            };
-        })(sampleImg);
+        painter.changePage(idx);
+        $('#thumbnailMdl').hide();
     }
-}
+});
 
 $("#grayFog").hide();

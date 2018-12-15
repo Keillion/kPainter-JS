@@ -4,7 +4,8 @@
 	<title>Hello mobile cam</title>
 	<meta charset='utf-8'>
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" />
-	<link rel='stylesheet' href='css/cssResetH5.css?v=20170728' />
+	<link rel="shortcut icon" href="../favicon.ico" type="image/x-icon" />
+	<link rel='stylesheet' href='../css/cssReset.css?v=20170728' />
 	<link rel='stylesheet' href='css/kPainter.css?v=20180103.6' />
 	<link rel='stylesheet' href='css/style.css?v=1' />
 </head>
@@ -17,6 +18,7 @@
 	><button onclick="painter.rotateLeft()">rotateLeft</button
 	><button onclick="painter.rotateRight()">rotateRight</button
 	><button onclick="painter.mirror()">mirror</button
+	><button onclick="painter.flip()">flip</button
 	><button onclick="painter.cropAsync()">crop</button
 	><button id="btn-loadcv" onclick="$('#grayFog').show();KPainter.loadCvScriptAsync(function(isSuccess){if(isSuccess){$('#btn-loadcv').hide();$('#btn-detectDoc').show();$('#btn-enterTsf').show();}$('#grayFog').hide();});">loadcv</button
 	><button id="btn-detectDoc" onclick="painter.enterFreeTransformModeAsync(function(isSuccess){if(isSuccess){painter.documentDetectAsync(function(isSuccess){if(isSuccess){$('#imgEditMdl').hide();$('#docDetectMdl').show();}});}});" style="display:none">detectDoc</button
@@ -77,11 +79,11 @@
 <script src='../js/jquery-3.2.1.min.js'></script>
 <script src="../js/promise.js"></script>
 <script src="../js/kUtil.js"></script>
+<script src="../js/kConsole.js"></script>
 <script src="../js/task-queue.js"></script>
 <script src="../js/exif.js"></script>
-<script src="../js/kPainter.js?v=20180103.16"></script>
-<script src="js/kConsole.js"></script>
-<script src="js/webrtc-adapter.js"></script>
+<script src="../js/webrtc-adapter.js"></script>
+<script src="../js/kPainter.js?v=20181214"></script>
 <script src="js/script.js?v=20171010"></script>
 </body>
 </html>
