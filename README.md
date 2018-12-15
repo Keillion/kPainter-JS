@@ -6,7 +6,7 @@ Copyright (c) 2017 Keillion Wang
 
 All Rights Reserved except that the github user agreement said.
 
-[Sample](https://www.keillion.site/mobileCam/)
+[Run Online Sample](https://www.keillion.site/mobileCam/)
 
 | browser | basic | document detect and freeTransform |
 |-|-|-|
