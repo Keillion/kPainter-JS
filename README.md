@@ -1,8 +1,8 @@
 # kPainter-JS (MBC)
 
-Browser side img editor, kPainter-JS. H5 only. Support both mobile and PC.
+Browser side img viewer and editor. H5 only. Support both mobile and PC.
 
-Copyright (c) 2017 Keillion Wang
+Copyright (c) 2019 Keillion Wang
 
 All Rights Reserved.
 
