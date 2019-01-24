@@ -1,0 +1,26 @@
+html,body{width:100%;height:100%;}
+#app-testMbc{width:100%;height:100%;display:flex;flex-flow:column wrap;}
+#mdl-view{position:relative;}
+#div-thumbnailBox{width:100%;height:20%;white-space:nowrap;overflow-x:auto;overflow-y:hidden;}
+#div-thumbnailBox > canvas{width:22%;height:100%;object-fit:contain;}
+#mdl-detect > label{border:1px solid #ddd;}
+#mdl-detect > label > span{color:#0a0;}
+#mdl-fun > label{border:1px solid #ddd;background:#eee;cursor:pointer;}
+#mdl-fun > label > input[type="number"]{width:60px;}
+@media screen and (max-width:63.9375em){
+    #app-testMbc{font-size:12px;}
+    #mdl-detect{position:relative;}
+    #mdl-view{flex:auto;}
+    #mdl-fun{position:fixed;left:0;top:0;height:calc(100% - 200px);background:rgba(0,0,0,0.3);overflow:auto;}
+    #btn-switch-fun{position:absolute;right:0;top:0;}
+    #mdl-log{height:120px;position:relative;overflow:hidden;}
+    .kPainterVideoMdl{height:calc(100% - 120px);z-index:2;}
+}
+@media screen and (min-width:64em){
+    #mdl-view{width:50%;height:100%;}
+    #mdl-detect{width:50%;}
+    #mdl-fun{width:50%;}
+    #btn-switch-fun{display:none;}
+    #mdl-log{width:50%;flex:auto;position:relative;overflow:hidden;}
+    .kPainterVideoMdl{width:50%;}
+}
