@@ -1,6 +1,5 @@
 kPainter.js
-mbc-*.js
-mbc-*.css
+mbc-*temp.js
 js/.git*
 js/README.md
 ignoreTemp/*
