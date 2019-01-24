@@ -11,7 +11,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
     var debug = false;
 
-    var root = this;
+    var root = self;
 
     var EXIF = function(obj) {
         if (obj instanceof EXIF) return obj;

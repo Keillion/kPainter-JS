@@ -1,2 +1,0 @@
-- kPainter.js is main js.
-- You could get latest other files from https://jquery.com/ and https://github.com/Keillion/browserSideBasic.git.

@@ -1,3 +1,6 @@
+/*
+ * master branch: https://github.com/Keillion/www.keillion.site Unlicense
+ */
 var TaskQueue = function(){
     /// <summary>
     /// @class TaskQueue

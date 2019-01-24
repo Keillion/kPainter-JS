@@ -1,3 +1,8 @@
+/*
+ * master branch: https://github.com/Keillion/www.keillion.site Unlicense
+ */
+/*global $*/
+/*eslint-disable indent*/
 $('body').append($([
 '<style type="text/css">#kConsoleShowHideBtn i {font-weight:bolder;padding:0 4px;}</style>',
 '<div>',
@@ -11,16 +16,17 @@ $('body').append($([
         ' <button id="kConsoleShowHideBtn">console</button>',
     '</div>',
 '</div>'].join('')));
-kConsoleMaxLine = 500;
-kConsoleLog = function(anything, color){
+/*eslint-enable indent*/
+self.kConsoleMaxLine = 500;
+self.kConsoleLog = function(anything, color){
     var str = undefined;
     if(undefined === anything){
         str = 'undefined';
     }else{
         try{
-            var str = JSON.stringify(anything, (function(){  
+            str = JSON.stringify(anything, (function(){  
                 var cache = [];
-                var keyCache = []
+                var keyCache = [];
                 return function(key, value) {
                     if (typeof value === 'object' && value !== null) {
                         var index = cache.indexOf(value);
@@ -31,9 +37,9 @@ kConsoleLog = function(anything, color){
                         keyCache.push(key || 'root');
                     }
                     return value;
-                }
+                };
             })());
-        }catch(ex){}
+        }catch(ex){/**/}
         if(undefined === str){
             str = anything.toString();
         }
@@ -45,14 +51,14 @@ kConsoleLog = function(anything, color){
     }
     line.innerHTML = str;
     kConsoleLogDiv.appendChild(line);
-    if($(kConsoleLogDiv).children().length > kConsoleMaxLine){
+    if($(kConsoleLogDiv).children().length > self.kConsoleMaxLine){
         $(kConsoleLogDiv).children().first().remove();
     }
     kConsoleLogDiv.scrollTop = kConsoleLogDiv.scrollHeight;
 };
 
-kConsoleError = function(anything){
-    kConsoleLog(anything, 'red');
+self.kConsoleError = function(anything){
+    self.kConsoleLog(anything, 'red');
 };
 
 /*(function(){
@@ -71,7 +77,7 @@ window.addEventListener('error', function (ev) {
         "line: ", ev.lineno, "<br>",
         "obj: " , ev.error, "<br>"
     ].join('');
-    kConsoleError(info);
+    self.kConsoleError(info);
 }, false);
 
 document.getElementById('kConsoleBtnRun').onclick = function(){
@@ -81,7 +87,7 @@ document.getElementById('kConsoleBtnRun').onclick = function(){
         return;
     }
     result = eval(document.getElementById('kConsoleTextArea').value);
-    kConsoleLog(result);
+    self.kConsoleLog(result);
 };
 
 document.getElementById('kConsoleClear').onclick = function(){

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Hello mobile cam</title>
+	<meta charset='utf-8'>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" />
+	<link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+	<link rel='stylesheet' href='css/cssResetH5.css?v=20170728' />
+	<link rel='stylesheet' href='css/kPainter.css?v=20180103.7' />
+	<link rel='stylesheet' href='css/style.css?v=1' />
+</head>
+<body>
+<div id="imgShowMdl" class="imgShowMdl">
+</div
+><div id="imgEditMdl" class="imgEditMdl" style="display:none">
+	<button onclick="painter.undo()">undo</button
+	><button onclick="painter.redo()">redo</button
+	><button onclick="painter.rotateLeft()">rotateLeft</button
+	><button onclick="painter.rotateRight()">rotateRight</button
+	><button onclick="painter.mirror()">mirror</button
+	><button onclick="painter.flip()">flip</button
+	><button onclick="painter.cropAsync()">crop</button
+	><button id="btn-loadcv" onclick="$('#grayFog').show();KPainter.loadCvScriptAsync(function(isSuccess){if(isSuccess){$('#btn-loadcv').hide();$('#btn-detectDoc').show();$('#btn-enterTsf').show();}$('#grayFog').hide();});">loadcv</button
+	><button id="btn-detectDoc" onclick="painter.enterFreeTransformModeAsync(function(isSuccess){if(isSuccess){painter.documentDetectAsync(function(isSuccess){if(isSuccess){$('#imgEditMdl').hide();$('#docDetectMdl').show();}});}});" style="display:none">detectDoc</button
+	><button id="btn-enterTsf" onclick="painter.enterFreeTransformModeAsync(function(isSuccess){if(isSuccess){$('#imgEditMdl').hide();$('#docDetectMdl').show();}});" style="display:none">freeTransform</button
+	><br
+	><button onclick="painter.saveEditAsync(function(){$('#imgEditMdl').hide();$('#switchImgMdl').show();$('#addUplMdl').show();});">Save</button
+	><button onclick="painter.cancelEdit();$('#imgEditMdl').hide();$('#switchImgMdl').show();$('#addUplMdl').show();">Cancel</button>
+</div
+><div id="docDetectMdl" class="docDetectMdl" style="display:none">
+	<button onclick="painter.undo()">undo</button
+	><button onclick="painter.redo()">redo</button
+	><button onclick="painter.setFreeTransformCornerPos([[0.5,-0.5],[0.5,0.5],[-0.5,0.5],[-0.5,-0.5]]);">selectAll</button
+	><button onclick="painter.documentDetectAsync();">detectDoc</button
+	><button onclick="painter.freeTransformAsync();">transform</button
+	><br
+	><button onclick="painter.exitFreeTransformModeAsync(function(isSuccess){if(isSuccess){$('#docDetectMdl').hide();$('#imgEditMdl').show();}});">exit</button
+	><button onclick="painter.freeTransformAsync(function(isSuccess){if(isSuccess){painter.exitFreeTransformModeAsync(function(isSuccess){if(isSuccess){$('#docDetectMdl').hide();$('#imgEditMdl').show();}});}});">&nbsp;ok&nbsp;</button>
+</div
+><div id="switchImgMdl" class="switchImgMdl">
+	<button onclick="painter.changePage('f');">I&lt;</button
+	><button onclick="painter.changePage('p');">&lt;</button
+	><span id="pageNum">0/0</span
+	><button onclick="painter.changePage('n');">&gt;</button
+	><button onclick="painter.changePage('l');">&gt;I</button
+	><button onclick="painter.del();">del</button
+	><button onclick="painter.enterEditAsync(function(isSuccess){if(isSuccess){$('#switchImgMdl').hide();$('#addUplMdl').hide();$('#imgEditMdl').show();}});">Edit</button
+	><br
+	><input id="ipt-downloadName" placeholder="filename to dwonload"
+	><div>
+		<button class="btn-showThumbnail" onclick="$('#ipt-deleteMode').prop('checked',false);$('#thumbnailMdl').removeClass('inDeleteMode');$('#thumbnailMdl').slideDown();">
+			<svg width="32" height="32" viewBox="0 0 1792 1792" xmlns="http://www.w3.org/2000/svg"><path d="M512 1248v192q0 40-28 68t-68 28h-320q-40 0-68-28t-28-68v-192q0-40 28-68t68-28h320q40 0 68 28t28 68zm0-512v192q0 40-28 68t-68 28h-320q-40 0-68-28t-28-68v-192q0-40 28-68t68-28h320q40 0 68 28t28 68zm640 512v192q0 40-28 68t-68 28h-320q-40 0-68-28t-28-68v-192q0-40 28-68t68-28h320q40 0 68 28t28 68zm-640-1024v192q0 40-28 68t-68 28h-320q-40 0-68-28t-28-68v-192q0-40 28-68t68-28h320q40 0 68 28t28 68zm640 512v192q0 40-28 68t-68 28h-320q-40 0-68-28t-28-68v-192q0-40 28-68t68-28h320q40 0 68 28t28 68zm640 512v192q0 40-28 68t-68 28h-320q-40 0-68-28t-28-68v-192q0-40 28-68t68-28h320q40 0 68 28t28 68zm-640-1024v192q0 40-28 68t-68 28h-320q-40 0-68-28t-28-68v-192q0-40 28-68t68-28h320q40 0 68 28t28 68zm640 512v192q0 40-28 68t-68 28h-320q-40 0-68-28t-28-68v-192q0-40 28-68t68-28h320q40 0 68 28t28 68zm0-512v192q0 40-28 68t-68 28h-320q-40 0-68-28t-28-68v-192q0-40 28-68t68-28h320q40 0 68 28t28 68z"/></svg>
+		</button>
+	</div>
+</div
+><div id="addUplMdl" class="addUplMdl">
+	<button class="btn-grab" onclick="painter.showFileChooseWindow();">Add</button
+	><button class="btn-showVideo" onclick="painter.showVideo()">Video</button
+	><button class="btn-download" onclick="painter.download($('#ipt-downloadName').val());">Download</button>
+</div
+><div id="thumbnailMdl" class="thumbnailMdl" style="display:none;">
+	<div class="div-topbar">
+		<button class="btn-hideThumbnail" onclick="$('#thumbnailMdl').slideUp();">
+			<svg width="32" height="32" viewBox="0 0 1792 1792" xmlns="http://www.w3.org/2000/svg"><path d="M1664 896v128q0 53-32.5 90.5t-84.5 37.5h-704l293 294q38 36 38 90t-38 90l-75 76q-37 37-90 37-52 0-91-37l-651-652q-37-37-37-90 0-52 37-91l651-650q38-38 91-38 52 0 90 38l75 74q38 38 38 91t-38 91l-293 293h704q52 0 84.5 37.5t32.5 90.5z"/></svg>
+		</button
+		><label class="lb-deleteMode">
+			<input id="ipt-deleteMode" type="checkbox"> Delete mode
+		</label>
+	</div
+	><div id="div-thumbnailContainer" class="div-thumbnailContainer">
+	</div>
+</div
+><div id="grayFog" class="grayFog">
+	<div class="spinner">
+		<div class="double-bounce1"></div>
+		<div class="double-bounce2"></div>
+	</div>
+</div>
+<script src='js/jquery-3.2.1.min.js'></script>
+<script src="js/kUtil.js"></script>
+<script src="js/kConsole.js"></script>
+<script src="js/task-queue.js"></script>
+<script src="js/exif.js"></script>
+<script src="js/webrtc-adapter.js"></script>
+<script src="js/kPainter.js?v=20181226"></script>
+<script src="js/script.js?v=20171010"></script>
+</body>
+</html>

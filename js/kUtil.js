@@ -1,4 +1,7 @@
-/*global $*/
+/*
+ * master branch: https://github.com/Keillion/www.keillion.site Unlicense
+ */
+/*global jQuery*/
 var kUtil = kUtil || {};
 if(!Math.sign){
     Math.sign = function(num){
@@ -76,7 +79,10 @@ kUtil.convertBase64ToBlob = function(base64Str, mimeType){
     var uint8Arr = new Uint8Array(byteNumArr);
     return new Blob([uint8Arr], {type: mimeType});
 };
-//author: meizz; modify: Keillion
+/**
+ * author: meizz; modify: Keillion
+ * https://blog.csdn.net/meizz/article/details/405708
+ * */
 Date.prototype.kUtilFormat = function(fmt){
     var o = {
         "M+" : this.getUTCMonth()+1,
@@ -106,7 +112,7 @@ kUtil.copyToClipBoard = function(txt){
         textarea.style.position = 'fixed';
         textarea.style.left = '0';
         textarea.style.top = '0';
-        $(document.body).append(textarea);
+        jQuery(document.body).append(textarea);
         textarea.value = txt;
         textarea.focus();
         textarea.select();
@@ -118,7 +124,7 @@ kUtil.copyToClipBoard = function(txt){
         }catch(ex){
             alert('copy failed, info: '+(ex.message || ex));
         }
-        $(textarea).remove();
+        jQuery(textarea).remove();
     }
 };
 (function($){

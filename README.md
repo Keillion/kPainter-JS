@@ -1,14 +1,14 @@
-# kPainter-JS
+# kPainter-JS (MBC)
 
 Browser side img editor, kPainter-JS. H5 only. Support both mobile and PC.
 
 Copyright (c) 2017 Keillion Wang
 
-All Rights Reserved except that the github user agreement said.
+All Rights Reserved.
 
-[Run Online Sample](https://www.keillion.site/mobileCam/)
+[Run Online Sample](https://www.keillion.site/kpainter/)
 
-| browser | basic | document detect and freeTransform |
+| browser | basic | video, document detect, freeTransform |
 |-|-|-|
 |chrome|ok|ok|
 |firefox|ok|ok|
@@ -16,4 +16,4 @@ All Rights Reserved except that the github user agreement said.
 |safari|ok|11+|
 |ie|10+|no|
 
-Call Keillionv@gmail.com if you like it. ^_^
+Visit https://www.dynamsoft.com/Support/Support.aspx and contact us if you like it. ^_^
