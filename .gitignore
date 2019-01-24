@@ -1,5 +1,5 @@
 js/*.jar
-js/.git*
+js/.git
 js/exif.js
 js/kPainter.js
 js/mbc-*temp.js
