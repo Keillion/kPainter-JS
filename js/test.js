@@ -29,6 +29,7 @@ var appTestMbc = new Vue({
         curIndex: painter.getCurIndex(),
         count: painter.getCount(),
         isEditing: painter.isEditing(),
+        mode: painter.getMode(),
         width: NaN,
         height: NaN,
         zoom: NaN,
@@ -47,6 +48,7 @@ var appTestMbc = new Vue({
         addedImageMaxWH: painter.addedImageMaxWH,
         isShowNewImgWhenAdd: painter.isShowNewImgWhenAdd,
         changePageCmd: '',
+        movePageToIndex: '',
         downloadFileName: '',
         //Gesturer
         leftDoubleClickZoomRate: painter.leftDoubleClickZoomRate,
@@ -128,22 +130,29 @@ var appTestMbc = new Vue({
         },
     },
     methods: {
-        loadCvScriptAsync: function(){
-            KPainter.loadCvScriptAsync(function(bSuccess){
-                kConsoleLog(bSuccess);
+        loadCvScript: function(){
+            KPainter.loadCvScript().then(function(){
+                kConsoleLog('loadCvScript success');
+            },function(ex){
+                kConsoleLog(ex.message || ex);
             });
         },
         //Image Store
         showFileChooseWindow: function(){
             painter.showFileChooseWindow();
         },
-        addImageAsync: function(src){
-            painter.addImageAsync(src, function(bSuccess){
-                kConsoleLog(bSuccess);
+        addImage: function(src){
+            painter.addImage(src).then(function(){
+                kConsoleLog('addImage success');
+            },function(ex){
+                kConsoleLog(ex.message || ex);
             });
         },
         changePage: function(cmd){
             kConsoleLog(painter.changePage(cmd));
+        },
+        movePage: function(toIdx){
+            kConsoleLog(painter.movePage(toIdx));
         },
         del: function(){
             kConsoleLog(painter.del());
@@ -156,18 +165,22 @@ var appTestMbc = new Vue({
             kConsoleLog(painter.setZoom(parseFloat(num), isRate));
         },
         //Basic Edit
-        enterEditAsync: function(){
-            painter.enterEditAsync(function(bSuccess){
-                kConsoleLog(bSuccess);
+        enterEdit: function(){
+            painter.enterEdit().then(function(){
+                kConsoleLog('enterEdit success');
+            },function(ex){
+                kConsoleLog(ex.message || ex);
             });
         },
         cancelEdit: function(){
             kConsoleLog(painter.cancelEdit());
         },
-        saveEditAsync: function(isCover){
-            painter.saveEditAsync(function(bSuccess){
-                kConsoleLog(bSuccess);
-            }, isCover);
+        saveEdit: function(isCover){
+            painter.saveEdit(isCover).then(function(){
+                kConsoleLog('saveEdit success');
+            },function(ex){
+                kConsoleLog(ex.message || ex);
+            });
         },
         addProtectedStep: function(num){
             kConsoleLog(painter.addProtectedStep(parseInt(num)));
@@ -176,17 +189,25 @@ var appTestMbc = new Vue({
             kConsoleLog(painter.removeProtectedStep(parseInt(num)));
         },
         undo: function(){
-            painter.undo(function(bSuccess){
-                kConsoleLog(bSuccess);
+            painter.undo().then(function(){
+                kConsoleLog('undo success');
+            },function(ex){
+                kConsoleLog(ex.message || ex);
             });
         },
         redo: function(){
-            painter.redo(function(bSuccess){
-                kConsoleLog(bSuccess);
+            painter.redo().then(function(){
+                kConsoleLog('redo success');
+            },function(ex){
+                kConsoleLog(ex.message || ex);
             });
         },
-        setCurStepAsync: function(index){
-            kConsoleLog(painter.setCurStepAsync(parseInt(index)));
+        setCurStep: function(index){
+            painter.setCurStep(parseInt(index)).then(function(){
+                kConsoleLog('success');
+            },function(ex){
+                kConsoleLog(ex);
+            });
         },
         rotateRight: function(){
             kConsoleLog(painter.rotateRight());
@@ -200,9 +221,11 @@ var appTestMbc = new Vue({
         flip: function(){
             kConsoleLog(painter.flip());
         },
-        resizeAsync: function(width, height){
-            painter.resizeAsync(parseInt(width), parseInt(height), function(bSuccess){
-                kConsoleLog(bSuccess);
+        resize: function(width, height){
+            painter.resize(parseInt(width), parseInt(height)).then(function(){
+                kConsoleLog('resize success');
+            },function(ex){
+                kConsoleLog(ex.message || ex);
             });
         },
         showCropRect: function(){
@@ -217,33 +240,41 @@ var appTestMbc = new Vue({
         setCropRectArea: function(left,top,right,bottom){
             kConsoleLog(painter.setCropRectArea(parseFloat(left),parseFloat(top),parseFloat(right),parseFloat(bottom)));
         },
-        cropAsync: function(){
-            painter.cropAsync(function(l,t,r,b){
-                kConsoleLog([l,t,r,b]);
+        crop: function(){
+            painter.crop().then(function(arr){
+                kConsoleLog(arr);
             });
         },
         //Free Transform
-        enterFreeTransformModeAsync: function(){
-            painter.enterFreeTransformModeAsync(function(bSuccess){
-                kConsoleLog(bSuccess);
+        enterFreeTransformMode: function(){
+            painter.enterFreeTransformMode().then(function(){
+                kConsoleLog('enterFreeTransformMode success');
+            },function(ex){
+                kConsoleLog(ex.message || ex);
             });
         },
-        exitFreeTransformModeAsync: function(){
-            painter.exitFreeTransformModeAsync(function(bSuccess){
-                kConsoleLog(bSuccess);
+        exitFreeTransformMode: function(){
+            painter.exitFreeTransformMode().then(function(){
+                kConsoleLog('exitFreeTransformMode success');
+            },function(ex){
+                kConsoleLog(ex.message || ex);
             });
         },
         setFreeTransformCornerPos: function(pos){
             painter.setFreeTransformCornerPos(pos);
         },
-        documentDetectAsync: function(){
-            painter.documentDetectAsync(function(bSuccess){
-                kConsoleLog(bSuccess);
+        documentDetect: function(){
+            painter.documentDetect().then(function(){
+                kConsoleLog('documentDetect success');
+            },function(ex){
+                kConsoleLog(ex.message || ex);
             });
         },
-        freeTransformAsync: function(){
-            painter.freeTransformAsync(function(bSuccess){
-                kConsoleLog(bSuccess);
+        freeTransform: function(){
+            painter.freeTransform().then(function(){
+                kConsoleLog('freeTransform success');
+            },function(ex){
+                kConsoleLog(ex.message || ex);
             });
         },
         //Video
@@ -251,12 +282,14 @@ var appTestMbc = new Vue({
             painter.showVideo().then(function(){
                 kConsoleLog('Play video success');
             },function(ex){
-                kConsoleLog(ex);
+                kConsoleLog(ex.message || ex);
             });
         },
         grabVideo: function(){
-            painter.grabVideo(true, function(bSuccess){
-                kConsoleLog(bSuccess);
+            painter.grabVideo(true).then(function(){
+                kConsoleLog('grabVideo success');
+            },function(ex){
+                kConsoleLog(ex.message || ex);
             });
         },
         hideVideo: function(){
@@ -288,6 +321,10 @@ painter.onNumChange = function(curIndex, length){
 
 painter.onUpdateImgPosZoom = function(){
     appTestMbc.isEditing = painter.isEditing();
+    setTimeout(function(){
+        appTestMbc.mode = painter.getMode();
+    },0);
+    appTestMbc.mode = painter.getMode();
     appTestMbc.width = painter.getWidth();
     appTestMbc.height = painter.getHeight();
     appTestMbc.zoom = painter.getZoom();

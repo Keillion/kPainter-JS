@@ -15,7 +15,7 @@
     - [`event` .onStartLoading](#event-onstartloading)
     - [`event` .onFinishLoading](#event-onfinishloading)
     - [`static String` .cvFolder](#static-string-cvfolder)
-    - [`static function` .loadCvScriptAsync](#static-function-loadcvscriptasync)
+    - [`static function` .loadCvScript](#static-function-loadcvscript)
 - [Image Store](#image-store)
     - [`function` .showFileChooseWindow()](#function-showfilechoosewindow)
     - [`HTMLInputElement` .defaultFileInput](#htmlinputelement-defaultfileinput)
@@ -23,12 +23,13 @@
     - [`event` .afterAddImgFromFileChooseWindow](#event-afteraddimgfromfilechoosewindow)
     - [`event` .beforeAddImgFromDropFile](#event-beforeaddimgfromdropfile)
     - [`event` .afterAddImgFromDropFile](#event-afteraddimgfromdropfile)
-    - [`function` .addImageAsync()](#function-addimageasync)
+    - [`function` .addImage()](#function-addimage)
     - [`Number` .addedImageMaxWH](#number-addedimagemaxwh)
     - [`boolean` .isShowNewImgWhenAdd](#boolean-isshownewimgwhenadd)
     - [`function` .updateUIOnResize()](#function-updateuionresize)
     - [`event` .onNumChange](#event-onnumchange)
     - [`function` .changePage()](#function-changepage)
+    - [`function` .movePage()](#function-movepage)
     - [`function` .del()](#function-del)
     - [`function` .getWidth()](#function-getwidth)
     - [`function` .getHeight()](#function-getheight)
@@ -52,15 +53,15 @@
     - [`function` .redo()](#function-redo)
     - [`function` .getStepCount()](#function-getstepcount)
     - [`function` .getCurStep()](#function-getcurstep)
-    - [`function` .setCurStepAsync()](#function-setcurstepasync)
-    - [`function` .enterEditAsync()](#function-entereditasync)
+    - [`function` .setCurStep()](#function-setcurstep)
+    - [`function` .enterEdit()](#function-enteredit)
     - [`function` .cancelEdit()](#function-canceledit)
-    - [`function` .saveEditAsync()](#function-saveeditasync)
+    - [`function` .saveEdit()](#function-saveedit)
     - [`function` .rotateRight()](#function-rotateright)
     - [`function` .rotateLeft()](#function-rotateleft)
     - [`function` .mirror()](#function-mirror)
     - [`function` .flip()](#function-flip)
-    - [`function` .resizeAsync()](#function-resizeasync)
+    - [`function` .resize()](#function-resize)
     - [`function` .getEditWidth()](#function-geteditwidth)
     - [`function` .getEditHeight()](#function-geteditheight)
 - [Crop](#crop)
@@ -73,16 +74,16 @@
     - [`event` .onCropRectChange](#event-oncroprectchange)
     - [`function` .setCropRectArea()](#function-setcroprectarea)
     - [`function` .getCropRectArea()](#function-getcroprectarea)
-    - [`function` .cropAsync()](#function-cropasync)
+    - [`function` .crop()](#function-crop)
 - [Free Transform](#free-transform)
-    - [`function` .documentDetectAsync()](#function-documentdetectasync)
+    - [`function` .documentDetect()](#function-documentdetect)
     - [`function` .setFreeTransformCornerPos()](#function-setfreetransformcornerpos)
     - [`function` .getFreeTransformCornerPos()](#function-getfreetransformcornerpos)
     - [`event` .onFreeTransformCornerPosChange](#event-onfreetransformcornerposchange)
     - [`Number` .freeTransformMaxWH](#number-freetransformmaxwh)
-    - [`function` .freeTransformAsync()](#function-freetransformasync)
-    - [`function` .enterFreeTransformModeAsync()](#function-enterfreetransformmodeasync)
-    - [`function` .exitFreeTransformModeAsync()](#function-exitfreetransformmodeasync)
+    - [`function` .freeTransform()](#function-freetransform)
+    - [`function` .enterFreeTransformMode()](#function-enterfreetransformmode)
+    - [`function` .exitFreeTransformMode()](#function-exitfreetransformmode)
 - [Video](#video)
     - [`HTMLDivElement` .videoHtmlElement](#htmldivelement-videohtmlelement)
     - [`MediaStreamConstraints` .videoSettings](#mediastreamconstraints-videosettings)
@@ -103,11 +104,11 @@
 MBC Instance
   |- View Mode
   |- Edit Mode (basicEdit)
-    |- FreeTransform Mode (need `loadCvScriptAsync`)
+    |- FreeTransform Mode (need `loadCvScript`)
     |- Brush Mode
 </pre>
 
-*reference:* [getMode()](#function-getmode)
+*reference:* [isEditing()](#function-isediting), [getMode()](#function-getmode)
 
 *explanation:*
 
@@ -274,25 +275,23 @@ Tell this painter the directory where you place `cv-wasm.js` and `cv-wasm.wasm`.
 <br /><br />
 
 ---
-## `static function` .loadCvScriptAsync
+## `static function` .loadCvScript
 
-You should call `MBC.loadCvScriptAsync()` first before use `Free Transform` and `Brush` module.
+You should call `MBC.loadCvScript()` first before use `Free Transform` and `Brush` module.
 
-*Syntax:* `MBC.loadCvScriptAsync(callback)`
+*Syntax:* `MBC.loadCvScript()`
 
 | parameter | type | description |
 | --- | --- | --- |
-| callback | `function(boolean bSuccess)` | |
+| *(return value)* | `Promise(resolve(), reject(ex))` | |
 
 *example:*
 ```js
-MBC.loadCvScriptAsync(function(bSuccess){
-    if(bSuccess){
-        console.log('load cv script success.');
-        painter.enterFreeTransformModeAsync();
-    }else{
-        console.log('load cv script fail.');
-    }
+MBC.loadCvScript().then(function(){
+    console.log('load cv script success.');
+    painter.enterFreeTransformMode();
+}, function(ex){
+    console.log('load cv script fail.'+(ex.message||ex));
 });
 ```
 
@@ -366,11 +365,11 @@ painter.beforeAddImgFromFileChooseWindow = function(ev, callback){
 
 Binding a function that would be called after adding image from `defaultFileInput`.
 
-*Syntax:* `function(){}`
+*Syntax:* `function(bSuccess, addResult){}`
 
 *example:*
 ```js
-painter.afterAddImgFromFileChooseWindow = function(bSuccess){
+painter.afterAddImgFromFileChooseWindow = function(bSuccess, addResult){
     if(bSuccess){console.log('The new image(s) has been added from file choose window.');}
 };
 ```
@@ -405,7 +404,7 @@ painter.beforeAddImgFromDropFile = function(ev, callback){
 ---
 ## `event` .afterAddImgFromDropFile
 
-*Syntax:* `function(){}`
+*Syntax:* `function(bSuccess, addResult){}`
 
 *example:*
 ```js
@@ -417,21 +416,23 @@ painter.afterAddImgFromDropFile = function(bSuccess){
 <br /><br />
 
 ---
-## `function` .addImageAsync()
+## `function` .addImage()
 
 Add image(s) to the MBC instance. Can only process in `View` mode.
 
-*Syntax:* `.addImageAsync(imgData, callback)`
+*Syntax:* `.addImage(imgData)`
 
 | parameter | type | description |
 | --- | --- | --- |
+| *(return value)* | `Promise(resolve(addResult), reject(ex))` | |
 | imgData | `Blob`, `HTMLCanvasElement`, `HTMLImageElement`, `String`*(url)*, `Array`*(a array of source)*, `FileList` | |
-| callback *(optional)* | `function(bSuccess)` | |
 
 *example:*
 ```js
-painter.addImageAsync(image, function(bSuccess){
+painter.addImage(image).then(function(){
     console.log('Add success');
+},function(){
+    console.log('Add error');
 });
 ```
 
@@ -460,17 +461,34 @@ Whether `changePage` to the new added image.
 
 Update the `htmlElement` of a MBC instance. Should call it manually when the `htmlElement` resize.
 
-*Syntax:* `.updateUIOnResize(isLazy, callback)`
+*Syntax:* `.updateUIOnResize(isLazy)`
 
 | parameter | type | description |
 | --- | --- | --- |
 | isLazy *(optional)*| `boolean` | Default false. Set true to avoid to update too frequently. |
-| callback | `function()` | Callback of finish updating. Might abort the earlier callback when `isLazy` is true. |
+
+<br />
+
+*Syntax:* `.updateUIOnResize()`
+
+| parameter | type | description |
+| --- | --- | --- |
+| *(return value)* | `boolean` | |
+
+<br />
+
+*Syntax:* `.updateUIOnResize(true)`
+
+| parameter | type | description |
+| --- | --- | --- |
+| *(return value)* | `Promise(resolve(), reject(ex))` | |
 
 *example:*
 ```js
 window.addEventListener('resize',function(){
-    painter.updateUIOnResize(true, function(){
+    painter.updateUIOnResize(true).then(function(){
+        console.log('painter update');
+    }, function(ex){
         console.log('painter update');
     });
 });
@@ -524,6 +542,30 @@ document.getElementById('btn-toThisPage').addEventListener('click', function(){
     painter.changePage(parseInt(document.getElementById('ipt-page').value));
 });
 ```
+
+<br /><br />
+
+---
+## `function` .movePage()
+
+Move page from source index to aim index. Can only process in `View` mode.
+
+*Syntax:* `.movePage(toIndex)`
+
+| parameter | type | description |
+| --- | --- | --- |
+| *(return value)* | `boolean` | |
+| toIndex | `Number`*(index)* | |
+
+<br />
+
+*Syntax:* `.movePage(fromIndex, toIndex)`
+
+| parameter | type | description |
+| --- | --- | --- |
+| *(return value)* | `boolean` | |
+| fromIndex | `Number`*(index)* | |
+| aimIndex | `Number`*(index)* | |
 
 <br /><br />
 
@@ -773,8 +815,8 @@ Add a protected step. Then this step would not be GC. Can only process in `Edit`
 document.getElementById('btn-enterFreeTransformMode').addEventListener('click', function(){
     // pretect step when enter freeTransform mode
     painter.addProtectedStep(painter.getCurStep());
-    // presume that `MBC.loadCvScriptAsync(callback)` has been called and success
-    painter.enterFreeTransformModeAsync();
+    // presume that `MBC.loadCvScript()` has been called and success
+    painter.enterFreeTransformMode();
 });
 
 document.getElementById('btn-saveFreeTransform').addEventListener('click', function(){
@@ -782,8 +824,8 @@ document.getElementById('btn-saveFreeTransform').addEventListener('click', funct
     var protectedSteps = painter.getProtectedSteps();
     painter.removeProtectedStep(protectedSteps[protectedSteps.length - 1]);
     // transform and exitFreeTransformMode
-    painter.freeTransformAsync(function(){
-        painter.exitFreeTransformModeAsync();
+    painter.freeTransform().then(function(){
+        painter.exitFreeTransformMode();
     });
 });
 
@@ -794,9 +836,9 @@ document.getElementById('btn-giveUpFreeTransform').addEventListener('click', fun
     // remove the the last pretect step
     painter.removeProtectedStep(lastPretectedStep);
     // exitFreeTransformMode
-    painter.exitFreeTransformModeAsync(function(){
+    painter.exitFreeTransformMode().then(function(){
         // jump to the last pretect step
-        painter.setCurStepAsync(lastPretectedStep);
+        painter.setCurStep(lastPretectedStep);
     });
 });
 ```
@@ -834,11 +876,11 @@ Get All protected steps. Can only process in `Edit` mode.
 
 Undo an editing step. Can only process in `Edit` mode.
 
-*Syntax:* `.undo(callback)`
+*Syntax:* `.undo()`
 
 | parameter | type | description |
 | --- | --- | --- |
-| callback | `function(boolean bSuccess)` | |
+| *(return value)* | `Promise(resolve(), reject(ex))` | |
 
 <br /><br />
 
@@ -847,11 +889,11 @@ Undo an editing step. Can only process in `Edit` mode.
 
 Redo an editing step. Can only process in `Edit` mode.
 
-*Syntax:* `.redo(callback)`
+*Syntax:* `.redo()`
 
 | parameter | type | description |
 | --- | --- | --- |
-| callback | `function(boolean bSuccess)` | |
+| *(return value)* | `Promise(resolve(), reject(ex))` | |
 
 <br /><br />
 
@@ -882,29 +924,29 @@ Get current editing step. Can only process in `Edit` mode.
 <br /><br />
 
 ---
-## `function` .setCurStepAsync()
+## `function` .setCurStep()
 
 Set current editing step. Can only process in `Edit` mode.
 
-*Syntax:* `.setCurStepAsync(index, callback)`
+*Syntax:* `.setCurStep(index)`
 
 | parameter | type | description |
 | --- | --- | --- |
+| *(return value)* | `Promise(resolve(), reject(ex))` | |
 | index | `Number` | |
-| callback | `function(boolean bSuccess)` | |
 
 <br /><br />
 
 ---
-## `function` .enterEditAsync()
+## `function` .enterEdit()
 
 Enter the `Edit` mode.
 
-*Syntax:* `.enterEditAsync(callback)`
+*Syntax:* `.enterEdit()`
 
 | parameter | type | description |
 | --- | --- | --- |
-| callback | `function(boolean bSuccess)` | |
+| *(return value)* | `Promise(resolve(), reject(ex))` | |
 
 <br /><br />
 
@@ -913,7 +955,7 @@ Enter the `Edit` mode.
 
 Leave the `Edit` mode without saving change.
 
-*Syntax:* `.cancelEdit(callback)`
+*Syntax:* `.cancelEdit()`
 
 | parameter | type | description |
 | --- | --- | --- |
@@ -922,15 +964,15 @@ Leave the `Edit` mode without saving change.
 <br /><br />
 
 ---
-## `function` .saveEditAsync()
+## `function` .saveEdit()
 
 Save change and leave the `Edit` mode.
 
-*Syntax:* `.saveEditAsync(callback, isCover)`
+*Syntax:* `.saveEdit(isCover)`
 
 | parameter | type | description |
 | --- | --- | --- |
-| callback | `function(boolean bSuccess)` | |
+| *(return value)* | `Promise(resolve(), reject(ex))` | |
 | isCover | `boolean` | |
 
 <br /><br />
@@ -988,17 +1030,17 @@ Flip. Can only process in `Edit` mode.
 <br /><br />
 
 ---
-## `function` .resizeAsync()
+## `function` .resize()
 
 Resize. Can only process in `Edit` mode.
 
-*Syntax:* `.resizeAsync(newWidth, newHeight, callback)`
+*Syntax:* `.resize(newWidth, newHeight)`
 
 | parameter | type | description |
 | --- | --- | --- |
+| *(return value)* | `Promise(resolve(), reject(ex))` | |
 | newWidth | `Number` | |
 | newHeight | `Number` | |
-| callback | `function(boolean bSuccess)` | |
 
 <br /><br />
 
@@ -1152,15 +1194,15 @@ Set `Crop Rect` area. Can only process in `Edit` mode.
 <br /><br />
 
 ---
-## `function` .cropAsync()
+## `function` .crop()
 
 Crop the selected area. Can only process in `Edit` mode.
 
-*Syntax:* `.cropAsync(callback, array)`
+*Syntax:* `.crop(array)`
 
 | parameter | type | description |
 | --- | --- | --- |
-| callback *(optional)* | `function([left, top, right, bottom])` | |
+| *(return value)* | `Promise(resolve([left, top, right, bottom]), reject(ex))` | |
 | array *(optional)* | `Array` | A array of [left, top, right, bottom] \(each -0.5 ~ 0.5\). Default use an area accroding to `Crop Rect`. |
 
 <br /><br />
@@ -1168,18 +1210,18 @@ Crop the selected area. Can only process in `Edit` mode.
 ---
 # Free Transform
 
-You should call `KPainter.loadCvScriptAsync()` first before use `FreeTransform` mode.
+You should call `KPainter.loadCvScript()` first before use `FreeTransform` mode.
 
 ---
-## `function` .documentDetectAsync()
+## `function` .documentDetect()
 
 Detect a document. Would auto call `setFreeTransformCornerPos()` after detected. Can only process in `FreeTransform` mode.
 
-*Syntax:* `.documentDetectAsync(callback, importSrc)`
+*Syntax:* `.documentDetect(importSrc)`
 
 | parameter | type | description |
 | --- | --- | --- |
-| callback *(optional)* | `function([[x0,y0], [x1,y1], [x2,y2], [x3,y3]])` |  x0, y0... is from -0.5 to 0.5. |
+| *(return value)* | `Promise(resolve([[x0,y0], [x1,y1], [x2,y2], [x3,y3]]), reject(ex))` | x0, y0... is from -0.5 to 0.5. |
 | importSrc *(optional)* | | TUDO. Not easy enough to use now. |
 
 <br /><br />
@@ -1229,18 +1271,18 @@ painter.onFreeTransformCornerPosChange = function(){
 ---
 ## `Number` .freeTransformMaxWH
 
-`freeTransformAsync()` is a really expensive operation. `freeTransformMaxWH` would limit the max width and height of the result.
+`freeTransform()` is a really expensive operation. `freeTransformMaxWH` would limit the max width and height of the result.
 
 *Syntax:* `.freeTransformMaxWH = 2048;`
 
 <br /><br />
 
 ---
-## `function` .freeTransformAsync()
+## `function` .freeTransform()
 
 Transform the quadrilateral surround by the `FreeTransform` corner into a rectangle. Can only process in `FreeTransform` mode.
 
-*Syntax:* `.freeTransformAsync(callback, cornerPoints, importSrc)`
+*Syntax:* `.freeTransform(callback, cornerPoints, importSrc)`
 
 | parameter | type | description |
 | --- | --- | --- |
@@ -1251,28 +1293,28 @@ Transform the quadrilateral surround by the `FreeTransform` corner into a rectan
 <br /><br />
 
 ---
-## `function` .enterFreeTransformModeAsync()
+## `function` .enterFreeTransformMode()
 
 Enter `FreeTransform` mode. Can only process in `Edit` mode.
 
-*Syntax:* `.enterFreeTransformModeAsync(callback)`
+*Syntax:* `.enterFreeTransformMode()`
 
 | parameter | type | description |
 | --- | --- | --- |
-| callback *(optional)* | `function(boolean bSuccess)` | |
+| *(return value)* | `Promise(resolve(), reject(ex))` | |
 
 <br /><br />
 
 ---
-## `function` .exitFreeTransformModeAsync()
+## `function` .exitFreeTransformMode()
 
 Exist `FreeTransform` mode.
 
-*Syntax:* `.exitFreeTransformModeAsync(callback)`
+*Syntax:* `.exitFreeTransformMode()`
 
 | parameter | type | description |
 | --- | --- | --- |
-| callback *(optional)* | `function(boolean bSuccess)` | |
+| *(return value)* | `Promise(resolve(), reject(ex))` | |
 
 <br /><br />
 
@@ -1319,6 +1361,14 @@ A [MediaStreamConstraints](https://developer.mozilla.org/en-US/docs/Web/API/Medi
 ---
 ## `function` .grabVideo
 
+*Syntax:* `.grabVideo(isAutoAdd)`
+
+| parameter | type | description |
+| --- | --- | --- |
+| isAutoAdd | `boolean` | Whether add image to instance automatically. |
+
+<br />
+
 *Syntax:* `.grabVideo()`
 
 Grab a image from the video and return the image.
@@ -1329,13 +1379,13 @@ Grab a image from the video and return the image.
 
 <br />
 
-*Syntax:* `.grabVideo(true, callback)`
+*Syntax:* `.grabVideo(true)`
 
 Grab a image from the video and auto add image to the painter. Can only process in `View` mode.
 
 | parameter | type | description |
 | --- | --- | --- |
-| callback *(optional)* | `function(boolean bSuccess)` | |
+| *(return value)* | `Promise(resolve(addResult), reject(ex))` | |
 
 <br /><br />
 
@@ -1365,11 +1415,11 @@ painter.beforeAddImgFromGrabVideoBtn = function(canvas, callback){
 ---
 ## `event` .afterAddImgFromGrabVideoBtn
 
-*Syntax:* `function(){}`
+*Syntax:* `function(bSuccess, addResult){}`
 
 *example:*
 ```js
-painter.afterAddImgFromGrabVideoBtn = function(bSuccess){
+painter.afterAddImgFromGrabVideoBtn = function(bSuccess, addResult){
     if(bSuccess){console.log('The new image(s) has been added from video.');}
 };
 ```

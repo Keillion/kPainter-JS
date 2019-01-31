@@ -18,6 +18,7 @@
             <label>getCurIndex(): <span v-text="curIndex"></span></label>
             <label>getCount(): <span v-text="count"></span></label>
             <label>isEditing(): <span v-text="isEditing"></span></label>
+            <label>getMode(): <span v-text="mode"></span></label>
             <br>
             <label>getWidth(): <span v-text="width"></span></label>
             <label>getHeight(): <span v-text="height"></span></label>
@@ -37,16 +38,17 @@
         ><div id="mdl-fun">
             <hr>
             Global:
-            <label v-on:click="loadCvScriptAsync">loadCvScriptAsync()</label>
+            <label v-on:click="loadCvScript">loadCvScript()</label>
             <hr>
             Image Store:
             <label>defaultFileInput.accept = <input v-model="defaultFileInputAccept"></label>
             <label><input v-model="defaultFileInputMultiple" type="checkbox">defaultFileInput.multiple</label>
             <label v-on:click="showFileChooseWindow" style="background:orange">showFileChooseWindow()</label>
-            <label v-on:click.self="addImageAsync(addImageSrc)">addImageAsync(<input v-model="addImageSrc">)</label>
+            <label v-on:click.self="addImage(addImageSrc)">addImage(<input v-model="addImageSrc">)</label>
             <label>addedImageMaxWH = <input v-model="addedImageMaxWH" type="number"></label>
             <label><input v-model="isShowNewImgWhenAdd" type="checkbox">isShowNewImgWhenAdd</label>
             <label v-on:click.self="changePage(changePageCmd)">changePage(<input v-model="changePageCmd">)</label>
+            <label v-on:click.self="movePage(movePageToIndex)">movePage(<input v-model="movePageToIndex">)</label>
             <label v-on:click="del">del()</label>
             <label v-on:click.self="download(downloadFileName)">download(<input v-model="downloadFileName">)</label>
             <hr>
@@ -57,20 +59,20 @@
             <label v-on:click.self="setZoom(zoomNum, zoomIsRate)">setZoom(<input v-model="zoomNum" type="number" step="0.0001">, <input v-model="zoomIsRate" type="checkbox">isRate)</label>
             <hr>
             Basic Edit:
-            <label v-on:click="enterEditAsync">enterEditAsync()</label>
+            <label v-on:click="enterEdit">enterEdit()</label>
             <label v-on:click="cancelEdit">cancelEdit()</label>
-            <label v-on:click.self="saveEditAsync(saveIsCover)">saveEditAsync(callback, <input v-model="saveIsCover" type="checkbox">isCover)</label>
+            <label v-on:click.self="saveEdit(saveIsCover)">saveEdit(<input v-model="saveIsCover" type="checkbox">isCover)</label>
             <label>stepImgsGCThreshold = <input v-model="stepImgsGCThreshold" type="number"></label>
             <label v-on:click.self="addProtectedStep(numAddProtectedStep)">addProtectedStep(<input v-model="numAddProtectedStep" type="number">)</label>
             <label v-on:click.self="removeProtectedStep(numRemoveProtectedStep)">removeProtectedStep(<input v-model="numRemoveProtectedStep" type="number">)</label>
             <label v-on:click="undo">undo()</label>
             <label v-on:click="redo">redo()</label>
-            <label v-on:click.self="setCurStepAsync(numSetCurStep)">setCurStepAsync(<input v-model="numSetCurStep" type="number">)</label>
+            <label v-on:click.self="setCurStep(numSetCurStep)">setCurStep(<input v-model="numSetCurStep" type="number">)</label>
             <label v-on:click="rotateRight">rotateRight()</label>
             <label v-on:click="rotateLeft">rotateLeft()</label>
             <label v-on:click="mirror">mirror()</label>
             <label v-on:click="flip">flip()</label>
-            <label v-on:click.self="resizeAsync(resizeWidth, resizeHeight)">resizeAsync(<input v-model="resizeWidth" type="number">, <input v-model="resizeHeight" type="number">)</label>
+            <label v-on:click.self="resize(resizeWidth, resizeHeight)">resize(<input v-model="resizeWidth" type="number">, <input v-model="resizeHeight" type="number">)</label>
             <hr>
             Crop:
             <label><input v-model="isAutoShowCropUI" type="checkbox">isAutoShowCropUI</label>
@@ -80,15 +82,15 @@
             <label>cropRectMinW = <input v-model="cropRectMinW" type="number"></label>
             <label>cropRectMinH = <input v-model="cropRectMinH" type="number"></label>
             <label v-on:click.self="setCropRectArea(cropRectLeft,cropRectTop,cropRectRight,cropRectBottom)">setCropRectArea(<input v-model="cropRectLeft" type="number" step="0.0001">, <input v-model="cropRectTop" type="number" step="0.0001">, <input v-model="cropRectRight" type="number" step="0.0001">, <input v-model="cropRectBottom" type="number" step="0.0001">)</label>
-            <label v-on:click="cropAsync">cropAsync()</label>
+            <label v-on:click="crop">crop()</label>
             <hr>
             Free Transform:
-            <label v-on:click="enterFreeTransformModeAsync">enterFreeTransformModeAsync()</label>
-            <label v-on:click="exitFreeTransformModeAsync">exitFreeTransformModeAsync()</label>
-            <label v-on:click="documentDetectAsync">documentDetectAsync()</label>
+            <label v-on:click="enterFreeTransformMode">enterFreeTransformMode()</label>
+            <label v-on:click="exitFreeTransformMode">exitFreeTransformMode()</label>
+            <label v-on:click="documentDetect">documentDetect()</label>
             <label v-on:click.self="setFreeTransformCornerPos([[x0,y0],[x1,y1],[x2,y2],[x3,y3]])">setFreeTransformCornerPos([[<input v-model="x0" type="number" step="0.0001">,<input v-model="y0" type="number" step="0.0001">],[<input v-model="x1" type="number" step="0.0001">,<input v-model="y1" type="number" step="0.0001">],[<input v-model="x2" type="number" step="0.0001">,<input v-model="y2" type="number" step="0.0001">],[<input v-model="x3" type="number" step="0.0001">,<input v-model="y3" type="number" step="0.0001">]])</label>
             <label>freeTransformMaxWH = <input v-model="freeTransformMaxWH" type="number"></label>
-            <label v-on:click="freeTransformAsync">freeTransformAsync()</label>
+            <label v-on:click="freeTransform">freeTransform()</label>
             <hr>
             Video:
             <label v-on:click="showVideo" style="background:orange">showVideo()</label>

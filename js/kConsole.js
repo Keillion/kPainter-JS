@@ -40,9 +40,14 @@ self.kConsoleLog = function(anything, color){
                 };
             })());
         }catch(ex){/**/}
-        if(undefined === str){
+        if(undefined === str || '{}' === str){
             str = anything.toString();
         }
+    }
+    if(self.onKConsoleLog){
+        setTimeout(function(){
+            self.onKConsoleLog(str);
+        }, 0);
     }
     var kConsoleLogDiv = document.getElementById("kConsoleLogDiv");
     var line = document.createElement("p");
@@ -56,6 +61,7 @@ self.kConsoleLog = function(anything, color){
     }
     kConsoleLogDiv.scrollTop = kConsoleLogDiv.scrollHeight;
 };
+self.onKConsoleLog = self.onKConsoleLog || null;
 
 self.kConsoleError = function(anything){
     self.kConsoleLog(anything, 'red');

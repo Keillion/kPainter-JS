@@ -32,7 +32,7 @@ $(window).resize(function(){
 
 painter.defaultFileInput.accept += ',image/tiff,application/pdf';
 
-var getCvsFromTif = function(blob, callback){
+var getCvsFromTif = function(blob, handlePromise){
     return new Promise(function(resolve, reject){
         if(self.Tiff){
             resolve();
@@ -73,7 +73,7 @@ var getCvsFromTif = function(blob, callback){
         for (var j = 0, len = tiff.countDirectory(); j < len; ++j) {
             taskQueue.push(function(j){
                 tiff.setDirectory(j);
-                callback(tiff.toCanvas(), function(){
+                handlePromise(tiff.toCanvas()).then(function(){
                     taskQueue.next();
                 });
             },null,[j]);
@@ -86,7 +86,7 @@ var getCvsFromTif = function(blob, callback){
     });
 };
 
-var getCvsFromPdf = function(blob, callback){
+var getCvsFromPdf = function(blob, handlePromise){
     return new Promise(function(resolve, reject){
         if(self.pdfjsLib){
             resolve();
@@ -137,7 +137,7 @@ var getCvsFromPdf = function(blob, callback){
                         viewport: viewport
                     });
                 }).then(function(){
-                    callback(cvs, function(){
+                    handlePromise(cvs).then(function(){
                         taskQueue.next();
                     });
                 }).catch(function(ex){
@@ -154,7 +154,7 @@ var getCvsFromPdf = function(blob, callback){
     });
 };
 
-var addImageFromUrlWithPdfTiffAsync = painter.beforeAddImgFromFileChooseWindow = painter.beforeAddImgFromDropFile = function(src, callback){
+self.addImageFromUrlWithPdfTiffAsync = painter.beforeAddImgFromFileChooseWindow = painter.beforeAddImgFromDropFile = function(src, callback){
     var taskQueue = new TaskQueue();
     var files = null;
     if(typeof src == "string" || src instanceof String){
@@ -174,21 +174,21 @@ var addImageFromUrlWithPdfTiffAsync = painter.beforeAddImgFromFileChooseWindow =
         taskQueue.push(function(i){
             var file = files[i];
             if('image/tiff' == file.type){
-                getCvsFromTif(file, painter.addImageAsync).then(function(){
+                getCvsFromTif(file, painter.addImage).then(function(){
                     taskQueue.next();
                 }).catch(function(ex){
                     console.error(ex);
                     taskQueue.next();
                 });
             }else if('application/pdf' == file.type){
-                getCvsFromPdf(file, painter.addImageAsync).then(function(){
+                getCvsFromPdf(file, painter.addImage).then(function(){
                     taskQueue.next();
                 }).catch(function(ex){
                     console.error(ex);
                     taskQueue.next();
                 });
             }else{
-                painter.addImageAsync(file, function(){
+                painter.addImage(file).then(function(){
                     taskQueue.next();
                 });
             }
