@@ -6,7 +6,7 @@ Copyright (c) 2019 Keillion Wang
 
 All Rights Reserved.
 
-[Run Online Sample](https://www.keillion.site/kpainter/)
+[Run Online Sample](https://keillion.github.io/kPainter-JS/test.html)
 
 | browser | basic | video, document detect, freeTransform |
 |-|-|-|
